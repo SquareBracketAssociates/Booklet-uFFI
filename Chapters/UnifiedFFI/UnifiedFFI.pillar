@@ -42,13 +42,13 @@ FFITutorial class >> ticksSinceStart
 Note that in this example we specify ==libc== as it exists in linux systems. For this code to run in other platforms you need to replace e.g., the =='libc.so.6'== string by =='libc.dylib'== in Mac OS or =='msvcrt.dll'== in windows.
 
 For Mac OS:
-[[language=smalltalk
+[[[language=smalltalk
 FFITutorial class >> ticksSinceStart
   ^ self ffiCall: #( uint clock () ) module: 'libc.dylib'
 ]]]
 
 For Windows:
-[[language=smalltalk
+[[[language=smalltalk
 FFITutorial class >> ticksSinceStart
   ^ self ffiCall: #( uint clock () ) module: 'msvcrt.dll'
 ]]]
