@@ -1,14 +1,18 @@
 sudo: required
 services:
-- docker
+  - docker
+
 before_install:
-- docker pull dpollet/texlive:pillar
+  - docker pull dpollet/texlive:pillar
+
 script:
-- docker run --tty --rm --volume $PWD:/work dpollet/texlive:pillar make book
+  - docker run --tty --rm --volume $PWD:/work dpollet/texlive:pillar make pdfbook spiralbook
+
 deploy:
   provider: releases
   api_key:
     secure: a/tOlNiRkl9EWkcsKzrIZ9XGgeK7liNH8N2zHagkrULjTtsETxkupcMiL+stE/omhGCyduYxo38QLPzzrINU7TYfcYp4zM4x56tjWaq9QcVoHEvjS7MGxlkn9j2WkLekDIrrtso3h5JZR0PAcsn0Wihdh4zwsMoZWNlJRx9NDqo+hG4iCUE79IOOZAUmyR2eona04A1vzwbHmKLfG3Kqm2WFBfH8PBSrBxvwXfxtHCzWUog5xu4lXg/fPZS4waN/D+sB6KHgHu4G+hej0VtAJgq/k7Oih88v4M18kUNJ0U1/3IpCXeNFiU4E3wZd8K50Z7+J0OE1lHOJPk/nZ8eTNCgAAYRcxUxaepcLFW6p2KDNnG84VmjMYY1CFQon+Nf7caMu/sV+1sFbbmlgvHr4bcUBNLmiDYdF3Ixvx/q4qnIPL+XF9GttZ2CWMGhdQVTe60dx6PhSNhHLxzgpQxxkV0i+LTJNLDT/LZ8LWeOxhE2Lb/bBmm3yVbp30n9IfDhDz/nERjjWXdDgqkAty67f81FjVOKUuJ3SdsRX/ambBLObIXzqXtSJL1MkOCbEForEBdXSbzMpBwf0SKuDd1aKX19e4yEcxqiSljgCFBMmvHJI59Xv2kCoH9FGQq64bISMtr+0oW7fX0TtBgRhGaZj3tlcPkSs+MS4myg7bv7RSzA=
-  file: build/book.pdf
+  file: build/unified-ffi.pdf
+  draft: true
   on:
     repo: SquareBracketAssociates/Booklet-uFFI

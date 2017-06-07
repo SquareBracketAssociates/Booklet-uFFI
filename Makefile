@@ -1,4 +1,4 @@
-MAIN = book
+MAIN = unified-ffi
 CHAPTERS = \
 	Chapters/UnifiedFFI/UnifiedFFI \
 
