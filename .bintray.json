@@ -18,7 +18,7 @@
 
     "files": [
         {
-            "includePattern": "build/(unified-ffi).pdf",
+            "includePattern": "build/(unified-ffi).spiral.pdf",
             "uploadPattern": "$1-wip.pdf",
             "matrixParams": { "override": 1 }
         }
