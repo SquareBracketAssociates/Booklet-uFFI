@@ -1,18 +1,26 @@
 sudo: required
 services:
-  - docker
+- docker
 
 before_install:
-  - docker pull dpollet/texlive:pillar
+- docker pull dpollet/texlive:pillar
 
 script:
-  - docker run --tty --rm --volume $PWD:/work dpollet/texlive:pillar make pdfbook spiralbook
+- docker run --tty --rm --volume $PWD:/work dpollet/texlive:pillar make pdfbook spiralbook
 
 deploy:
-  provider: releases
-  api_key:
-    secure: a/tOlNiRkl9EWkcsKzrIZ9XGgeK7liNH8N2zHagkrULjTtsETxkupcMiL+stE/omhGCyduYxo38QLPzzrINU7TYfcYp4zM4x56tjWaq9QcVoHEvjS7MGxlkn9j2WkLekDIrrtso3h5JZR0PAcsn0Wihdh4zwsMoZWNlJRx9NDqo+hG4iCUE79IOOZAUmyR2eona04A1vzwbHmKLfG3Kqm2WFBfH8PBSrBxvwXfxtHCzWUog5xu4lXg/fPZS4waN/D+sB6KHgHu4G+hej0VtAJgq/k7Oih88v4M18kUNJ0U1/3IpCXeNFiU4E3wZd8K50Z7+J0OE1lHOJPk/nZ8eTNCgAAYRcxUxaepcLFW6p2KDNnG84VmjMYY1CFQon+Nf7caMu/sV+1sFbbmlgvHr4bcUBNLmiDYdF3Ixvx/q4qnIPL+XF9GttZ2CWMGhdQVTe60dx6PhSNhHLxzgpQxxkV0i+LTJNLDT/LZ8LWeOxhE2Lb/bBmm3yVbp30n9IfDhDz/nERjjWXdDgqkAty67f81FjVOKUuJ3SdsRX/ambBLObIXzqXtSJL1MkOCbEForEBdXSbzMpBwf0SKuDd1aKX19e4yEcxqiSljgCFBMmvHJI59Xv2kCoH9FGQq64bISMtr+0oW7fX0TtBgRhGaZj3tlcPkSs+MS4myg7bv7RSzA=
-  file: build/unified-ffi.pdf
-  draft: true
+- provider: bintray
+  file: .bintray.json
   on:
     repo: SquareBracketAssociates/Booklet-uFFI
+  skip_cleanup: true
+  user: cdlm
+  key:
+    secure: yGqRzDgQ6Zr7WMTyeEezUhssm6Yo0duymtZ9MekMBsjK8t51ad+ylP3oRL7COwuhrcVhfP7shis+Ltp8+qQigQXMSh+uhKx9n1vCke0DEvwWuORNbqxGSHAi6xdR/IbonXC+a3rk1D6HtjtsXz1v+zLSq0dK6TiSPUof0MHyY+VbICULH0Wiok/Ly9M9Uw6GHIXZ5p4W0nvUau14ASGoaqNLJ7XQOBP7yXHndKbTwbysp4v6cvODUjxQBzze21dN5Tg/POWciA8cI7RyD9ZM6uqhCeZNsUWiIuEMX15dRPQB5DMuEF1yxDn/IF6FMbMbsguSnXcomPsp7LmJY6WW8O9nXzSWs5tMnInDsN/Y2kAhIUwBLvO1/fwsrqH6fnx5aK0VrqAD8+vaksSphZuoIYPF9vVXRrciQRaqR5Wfay2PCEcHQZTb9JS65mOnhv4ovuCScbksp2AEG5EVuqBiGzpNaNZ41EALzUU9Uh6UgN32jqQ2WFFNKzdFRdxQnSz7/99zpXWl9nGQhRUFFyLewRtZGS1DzQ2NMqvkImMVAo/Hs8mZ1Xrxwz5eneHmZfoOATjiXPbuiLpM2hg+NIOZvURrefitW6w6xOoJfPZFIlyPxHYUJuy39aSCdpaAHreB3iqCs3FmsHhdIC36oStOBjtYyklKiQ2J9VxqXVXIKZI=
+- provider: releases
+  file: build/unified-ffi.pdf
+  on:
+    tags: true
+  skip_cleanup: true
+  api_key:
+    secure: pRfu3fr35BzqQDi1ul0SubPSwO8zcyIidqLRZPz3XIrH4qoy1Zgnq785dmB7ziNQqH+VJyh7askSFY3JLxL0d4P0eUgj2ZDIOhJsUQQ/ihevOBWbxlMOoEPjQfzA11l8WrNCQ566KrcYiISRi7bCg698kPTWSRwOmmvqXOJe5zGkuUbVmMNUV2oxaNV4JC8kVyVWHYy0nNMLEX/hzRZRh1+8K34/ds+fZ7irLrbDWMbKGHCyuLCSqv+zJJdu99nWLTclrCxFzK4DEHaMlFiO7wkUpyQLwZ38EDnb3E7iv045jSqCx3XB+DMRG1Da2/9BIXl0mho5ELdEvfGVAbjI2no5FWd0H1cs4/banAePCFnM7ZscJBaPWgVajB7EzrcADJUoxpmU6+6n1aIC3CnjscfAHqSAKGv8CO/Jh+Uirc8ATRpSqa73f2Nnj9tRCqwCOnFOCEzu0w5l3Ppz2Qpif04P+QbebZehSVaBJ4W01R2i8Rac3IuZDhZVaek1X24HFxUOd/rvHpbhz8eeANdnsWCTkAm+0sD+iKsWKICRMxFZfCK/SPldAcjXZsOsEMTqfx7ZWyCc7GeesQWcmW+z3shziyQd9tdeArJWLwacly3hH3WeyuUD5JyPF9klvDBtHgTVajdU4yp+3oXsrtTmetnBz+RESxQGdLgZRlQBQog=
