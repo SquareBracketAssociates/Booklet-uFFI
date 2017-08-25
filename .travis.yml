@@ -14,7 +14,7 @@ deploy:
   on:
     repo: SquareBracketAssociates/Booklet-uFFI
   skip_cleanup: true
-  user: cdlm
+  user: ducasse
   key:
     secure: hkUj/Wn14shEbPh7zLm/ulj4MK7UihZoS0LbrIN/pFecUG5gtGPtVp3yZ6sltT9g/2JBJVGMltqcJnnAeB7ky0dtqXsM88TwOD6bTFT0J/oi/Aoe8rhjqyda14azy3EzyCaj0WegoRv+5emsJU3z/Sa5aEDWJCO3HwVk9sU4QTuU1/DK8KQbbYiXw6Gbw7o6VsQx/i+bA7dR+2Cio9G7S1zATib/8+Fhdnf9XZKuyTB1LZRl+v4B70yu61butyhOXx3/uR52eNqof29TLbFoxJXLWW58j3idLgK/WjH6rwsaBP1BoWmj84hQaycK5LkXZG7ryB5seHGDQ6mLm599rOeUyQDFuhMRJOqTXVZWPrBhaGi51JgR5OZcVvscpUGwSlZaBXwEBz4+H4pPhkgq3MWZeF0/5eguMjnY9XJTQ/kim6fku0Yln+XsVOtNqYDN5+pe1weoTckHrodhzyE8RdsyX6DL6TAtpB4fzB8O8DGi6Wat25U2C57X2qXSpwJmOM9NWXRg3eAB1hYFK6lHtH1kffd4b0989GQbSb3xk5BbnuY/lnO0Xse43A2qp+GIFNy7AonjoWDlicjxxb5TfVwrWWaY8CShfp5cKgUM1CBwYbizKQ/R+TpMBlTG2sMRvFHENfWrD3ML8JGtN5A3w7l3vquxHkrqytDO4tt55TI=
 - provider: releases
