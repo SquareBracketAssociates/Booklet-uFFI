@@ -9,4 +9,6 @@ Superdraft now.
 [Browse] the directory for released versions of the booklet or
 look here for more [Books and Booklets](http://books.pharo.org/)
 
-PDF can be found at https://github.com/SquareBracketAssociates/Booklet-uFFI
+The result from the latest successful Travis build can be found [on Bintray (PDF)](https://bintray.com/squarebracketassociates/wip/download_file?file_path=booklet-uffi.pdf).
+
+We also have a [CI job on Inria's Jenkins](https://ci.inria.fr/pharo-contribution/view/Books/job/Booklet-uFFI/).
