@@ -1,15 +1,14 @@
 !! Unified FFI
 
-Foreign Function Interface (FFI) represents the way to call functions/procedures and data structures written in C.
+A Foreign Function Interface (FFI) allows a program written in one language to use resources written in another langauge. In this case, it allows us to access functions/procedures and data structures written in C.
 
-In this document you will learn about the new FFI framework named Unified FFI, or shortly, uFFI.
+In this document you will learn about the new FFI framework named Unified FFI, or uFFI for short.
 
-We will present how to invoke functions written in C, access C struct, define callbacks and other frequent situations that you face when you want to interact with an external library. uFFI has been developed by E. Lorenzano.
+We will show how to invoke functions written in C, access C structs, define callbacks and handle other frequent situations that you face when you want to interact with an external library. uFFI has been developed by E. Lorenzano.
 
 
 !!! Calling a simple external function
-A Foreign Function Interface (FFI) is the mechanism used by a programming language to invoke or call functions written in other programming language, most commonly ==C==.
-To illustrate what this means, and how uFFI achieves it, we will start with an example.
+To illustrate the purpose and usage of uFFI, we will start with an example.
 Suppose that you want to know the amount of time the image has been running by calling the underlying OS function
 named ==clock==. This function is part of the standard C library (==libc==). Its C declaration is:
 
@@ -17,17 +16,17 @@ named ==clock==. This function is part of the standard C library (==libc==). Its
 clock_t clock(void);
 ]]]
 
-For the sake of simplicity, let's consider that ==clock=='s return type is a ==unit== instead of ==clock\_t==.
-We will discuss about types, conversions and typedefs in the following sections.
-This would result in the following function signature.
+For the sake of simplicity, let's consider that ==clock=='s return type is a ==uint== instead of ==clock\_t==.
+We will discuss types, conversions and typedefs in subsequent sections.
+This would result in the following function signature:
 
 [[[
 uint clock (void)
 ]]]
 
 To call ==clock== from the image, we need to define a binding between a Smalltalk method and the corresponding function.
-FFI bindings are normal smalltalk methods that use the ==ffiCall:module:== message to specify which function they will call.
-Let's then define a new class ==FFITutorial== and define in it a binding to the ==clock== function:
+FFI bindings are normal smalltalk methods that use the ==ffiCall:module:== message to specify the C function they will call.
+Let's then define a new class ==FFITutorial== and give it access to the ==clock== function:
 
 [[[language=smalltalk
 Object subclass: #FFITutorial
@@ -39,7 +38,7 @@ FFITutorial class >> ticksSinceStart
   ^ self ffiCall: #( uint clock () ) module: 'libc.so.6'
 ]]]
 
-Note that in this example we specify ==libc== as it exists in linux systems. For this code to run in other platforms you need to replace e.g., the =='libc.so.6'== string by =='libc.dylib'== in Mac OS or =='msvcrt.dll'== in windows.
+@@note The module name above is an example for linux systems. For this code to run on other platforms you need to replace the =='libc.so.6'== string by e.g. =='libc.dylib'== for Mac OS or =='msvcrt.dll'== for windows.
 
 For Mac OS:
 [[[language=smalltalk
@@ -53,10 +52,10 @@ FFITutorial class >> ticksSinceStart
   ^ self ffiCall: #( uint clock () ) module: 'msvcrt.dll'
 ]]]
 
-In the example above, we define a new empty class, and a method named ==ticksSinceStart== on its class side.
-The method ==ffiCall:module:== is provided by UnifiedFFI and defined in ==Object==, so we can be use it either on the instance or the class-side.
+In our example, we've defined a new empty class, and a method named ==ticksSinceStart== on its class side.
+The method ==ffiCall:module:== is provided by UnifiedFFI and defined in ==Object==, so we can use it either on the instance or the class-side.
 
-@@note the message ==#ffiCall:module:== cannot be used as a normal expression in a playground or in the middle of a method. It must only be sent by methods that define a callout, because it does some
+@@note The message ==#ffiCall:module:== cannot be used as a normal expression in a playground or in the middle of a method. It must only be sent by methods whose only purpose is to define a callout because it does some
 context mangling behind the scenes.
 
 To test if our code works, execute the method and print its result:
@@ -65,7 +64,7 @@ To test if our code works, execute the method and print its result:
 FFITutorial ticksSinceStart
 ]]]
 
-If everything went ok, this expression will return the number of native clock ticks since the Pharo proces started.
+If everything went ok, this expression will return the number of native clock ticks since the Pharo process started.
 
 !!! Analyzing the FFI callout
 
@@ -76,54 +75,47 @@ FFITutorial class >> ticksSinceStart
 	^ self ffiCall: #( uint clock () ) module: 'libc.so.6'
 ]]]
 
-The binding we just did is also called an FFI callout, as it performs a call of a function in the ''outside world'' (the C world).
+The binding we just created is also called an FFI callout, as it calls a function in the ''outside world'' (the C world).
 The method ==ffiCall:module:== is the one in charge of making the callout.
-In other words, it first transforms (marshalls) all arguments from Smalltalk to C, pushes them to the C stack, performs a call
-to the external function, and finally converts (marshalls) the return value from C to Smalltalk.
-To do all this, ==ffiCall:module:== uses the function description provided as argument.
-The first argument is the ''signature'' of the function we want to call, described with an array, and the second argument is the ''module'' or ''library'' where
-uFFI will look for it.
+In other words, it first transforms (marshalls) all arguments from Smalltalk to C, pushes them onto the C stack, performs a call to the external function, and finally converts (marshalls) the return value from C to Smalltalk.
+To do all this, ==ffiCall:module:== uses the function description provided as its argument.
+The first argument is the ''signature'' of the function we want to call, described with an array, and the second argument is the ''module'' or ''library'' where uFFI will look for it.
 
 In our example, the signature is as follows: ==#(uint clock ())==
 - Its first element is the C return type, here ==uint==.
 - Its second is the name of the called function, here ==clock==.
-- Its third element is an array describing the function parameters if there's any.
+- Its third element is an array describing the function parameters, if any.
 
-Basically, if you strip down the outer #(), what is inside is a C function prototype, which is very close to normal C syntax.
-This is intentionally done so, that in most cases you can actually copy-and-paste a complete C function declaration,  taken from header file or from documentation, and it is ready for use.
-The second argument, the module or library, is in our example =='libc.so.6'==, the name of the library where to find the function.
-The avid reader will notice that our binding is platform dependent, as it will only run from a linux machine. We will explore how to define bindings in a platform-independent in the following section.
+Basically, if you strip down the outer #(), what is inside is a C function prototype that is very close to normal C syntax.
+This is intentionally done so that in most cases you can actually copy-and-paste a complete C function declaration, taken from a header file or documentation, and it is ready for use.
+The second argument - in our example =='libc.so.6'== - is the name of the library that contains the function.
+The avid reader will notice that our binding is platform dependent, as it will only run on a linux machine. We will explore how to define bindings in a platform-independent way in the following section.
 
-@@note is this next sentence necessary here?
-Note that there exist other messages to define callouts that will be discussed later.
+@@ While ==ffiCall:module:== is the most common callout message, later we will discuss other methods.
 
 !!! A note on marshalling
 
-In the ==clock== callout example above, we specified the return type as ==uint== and not ==SmallInteger==. You will see as you go on in the chapter that this is the same as
-well with function arguments. Types in bindings are all described in terms of C language. In general you don't have to worry too
-much about this, because uFFI knows how to map standard C values to Smalltalk objects and
-vice-versa. So, a callout is executed, the return value will be converted into a ==SmallInteger==.
+In the ==clock== callout example above, we specified the return type as ==uint== and not ==SmallInteger==. This is because uFFI types are always described as they are in the C language. You will also see this with function arguments elsewhere in this chapter. In general you don't have to worry too much about this, because uFFI knows how to map standard C values to Smalltalk objects and vice-versa. So, when a callout is executed, the return value will be converted into a ==SmallInteger==.
 You can also define new mappings from C types to Smalltalk objects. This is useful when wrapping libraries that
 define new C types as we will show later.
 
-This conversion process for types from different languages is called ''marshalling''.
+This process of converting types between different languages is called ''marshalling''.
 We will see more examples of automatic conversions (by automatic, we mean that they are already defined in
-uFFI) in this Chapter.
+uFFI) in this chapter.
 
 !!! Modules and libraries
 
-We saw before that a callout requires to specify a module or library.
+We saw before that a callout requires us to specify a module or library.
 uFFI uses this information to look up the given function.
-In our previous example, we were looking up the ==clock== function inside the standard C library, i.e., ==libc.so.6== in my unix system.
+In our previous example, we were looking up the ==clock== function inside the standard C library, i.e., ==libc.so.6== in a unix system.
 
-We saw until now how modules in uFFI can be expressed by using a library name.
-However, this has portability issues as a library will not have the same name in different platforms, or not be located in the same place.
-uFFI solves this problem by allowing also library objects.
-A library object defines dinamically the real name of the library in the current platform.
-A library in uFFI is defined as a subclass of ==FFILibrary== and defining the methods ==macModuleName==, ==unixModuleName== and ==win32ModuleName==.
-uFFI will dispatch to the library to get the correct module name given the current platform.
+We've seen how to specify a module by using a library name.
+However, this creates a portability issue as a library will not necessarily have the same name, or be located in the same place, on all platforms.
+uFFI solves this problem with library objects, which dynamically determine the correct name of the library for the current platform.
+Library objects are created by subclassing ==FFILibrary== and defining the methods ==macModuleName==, ==unixModuleName== and ==win32ModuleName==.
+uFFI can then query this object to get the correct module name given the current platform.
 
-Let's for example consider the library ==LibC== already provided by uFFI:
+In fact, uFFI already provides such an object for ==LibC==. Here is the relevant implementation excerpt:
 
 [[[language=smalltalk
 FFILibrary subclass: #LibC
@@ -142,15 +134,14 @@ LibC>>win32ModuleName
 	^ 'msvcrt.dll'
 ]]]
 
-With this platform aware library implementation, we can re-implement our binding in a platform-independent fashion:
+With this platform-aware library object, we can re-implement our binding in a platform-independent fashion:
 
 [[[language=smalltalk
 FFITutorial class >> ticksSinceStart
 	^ self ffiCall: #( uint clock () ) module: LibC
 ]]]
 
-As you can see, it is very easy to express different paths and names, depending on different conditions. For example, here you
-can see how the Cairo library is defined for unix platforms:
+As you can see, it is very easy to express library details dynamically. Here is a more complex example showing how the Cairo library specifies its location on different unix-like platforms:
 
 [[[language=smalltalk
 CairoLibrary>>unixModuleName
@@ -167,10 +158,10 @@ CairoLibrary>>unixModuleName
 		self error: 'Cannot locate cairo library. Please check if it installed on your system'
 ]]]
 
-This is very useful and a recommended way of dealing with libraries, better than hardcoding module names.
+This is very useful and is the recommended way of dealing with libraries, instead of hardcoding module names.
 
 Finally, note that any class can also define a method ==ffiModuleName== to provide a default module for bindings in that class.
-Callouts may not specify a module to use this default module.
+Callouts which do not specify a module would then use this default module.
 
 [[[language=smalltalk
 FFITutorial class>>ffiLibraryName
@@ -180,7 +171,7 @@ FFITutorial class>>ticksSinceStart
 	^ self ffiCall: #( uint clock () )
 ]]]
 
-@@note ==ffiLibraryName== is a terrible name I forget to change. It should be just ==ffiLibrary== (but now change is not so easy...)
+@@note ==ffiLibraryName== is a terrible name I forgot to change. It should be just ==ffiLibrary== (but now changing it is not so easy...)
 
 !!! Passing arguments to a function
 
