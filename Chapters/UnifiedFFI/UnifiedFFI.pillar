@@ -55,8 +55,7 @@ FFITutorial class  >>  ticksSinceStart
 In our example, we've defined a new empty class, and a method named ==ticksSinceStart== on its class side.
 The method ==ffiCall:module:== is provided by UnifiedFFI and defined in ==Object==, so we can use it either on the instance or the class-side.
 
-@@note The message ==#ffiCall:module:== cannot be used as a normal expression in a playground or in the middle of a method. It must only be sent by methods whose only purpose is to define a callout because it does some
-context mangling behind the scenes.
+@@note The message ==#ffiCall:module:== cannot be used as a normal expression in a playground or in the middle of a method. It must only be sent by methods whose only purpose is to define a callout because it does some context mangling behind the scenes.
 
 To test if our code works, execute the method and print its result:
 
