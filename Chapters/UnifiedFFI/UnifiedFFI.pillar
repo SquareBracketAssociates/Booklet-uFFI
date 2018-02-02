@@ -230,8 +230,8 @@ FFICExamples class >> absMinusFortyTwo
 	^ self ffiCall: #( int abs (-42) ) module: LibC
 ]]]
 
-Note that we omitted the type of the argument and directly write  ==int abs (-45)== instead of writing
-==int abs (int -45)== since by default arguments are automatically converted to C int.
+Note that we omitted the type of the argument and directly write  ==int abs (-42)== instead of writing
+==int abs (int -42)== since by default arguments are automatically converted to C int.
 
 But, if the C function takes a float/double as argument for example, you must specify it in the signature:
 
