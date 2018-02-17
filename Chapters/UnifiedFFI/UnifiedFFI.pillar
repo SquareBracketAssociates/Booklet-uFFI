@@ -1,4 +1,13 @@
-!! Unified FFI
+!! Unified FFI (abandoned documentation)
+
+Dear (poor) reader, since years I tried to convince people understanding FFI to finish this documentation.
+But I failed. Apparently documenting FFI is not important enough. So I stopped to try and in the future
+I will remove simply this booklet because there is nothing as bad as a half done unfinished documentation. 
+If within 6 months this documentation stays in this bad format, I will remove it from this repository. 
+15 of Febrary 2018. By 15 of August if nothing changed I will remove this project and all the associated infrastructure. 
+
+S. Ducasse - ''Even jedi cannot move mountain.''
+
 
 A Foreign Function Interface (FFI) allows a program written in one language to use resources written in another langauge. In this case, it allows us to access functions/procedures and data structures written in C.
 
@@ -606,3 +615,9 @@ var := ExternalAddress fromAddress: 16r42000000.
 
 
 !!! Conclusion
+
+
+
+!! FAQs
+
+If someone is interested to collect questions and answers from the mailing-list this is where there could go. 
