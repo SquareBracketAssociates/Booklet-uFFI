@@ -1,19 +1,11 @@
-!! Unified FFI (abandoned documentation)
-
-Dear (poor) reader, since years I tried to convince people understanding FFI to finish this documentation.
-But I failed. Apparently documenting FFI is not important enough. So I stopped to try and in the future
-I will remove simply this booklet because there is nothing as bad as a half done unfinished documentation. 
-If within 6 months this documentation stays in this bad format, I will remove it from this repository. 
-15 of Febrary 2018. By 15 of August if nothing changed I will remove this project and all the associated infrastructure. 
-
-S. Ducasse - ''Even jedi cannot move mountain.''
-
-
-A Foreign Function Interface (FFI) allows a program written in one language to use resources written in another langauge. In this case, it allows us to access functions/procedures and data structures written in C.
+!! Unified FFI
+A Foreign Function Interface (FFI) allows a program written in one language to use resources written in another langauge. 
+In this case, it allows us to access functions/procedures and data structures written in C.
 
 In this document you will learn about the new FFI framework named Unified FFI, or uFFI for short.
 
-We will show how to invoke functions written in C, access C structs, define callbacks and handle other frequent situations that you face when you want to interact with an external library. uFFI has been developed by E. Lorenzano.
+We will show how to invoke functions written in C, access C structs, define callbacks and handle other frequent situations 
+that you face when you want to interact with an external library. uFFI has been developed by E. Lorenzano.
 
 
 !!! Calling a simple external function
@@ -43,22 +35,25 @@ Object subclass: #FFITutorial
 	classVariableNames: ''
 	package: 'FFITutorial'
 
-FFITutorial class  >>  ticksSinceStart
+FFITutorial class  >>  ticksSinceStart [
   ^ self ffiCall: #( uint clock () ) module: 'libc.so.6'
+]
 ]]]
 
 @@note The module name above is an example for linux systems. For this code to run on other platforms you need to replace the =='libc.so.6'== string by e.g. =='libc.dylib'== for Mac OS or =='msvcrt.dll'== for windows.
 
 For Mac OS:
 [[[language=smalltalk
-FFITutorial class  >>  ticksSinceStart
+FFITutorial class  >>  ticksSinceStart [
   ^ self ffiCall: #( uint clock () ) module: 'libc.dylib'
+]
 ]]]
 
 For Windows:
 [[[language=smalltalk
-FFITutorial class  >>  ticksSinceStart
+FFITutorial class  >>  ticksSinceStart [
   ^ self ffiCall: #( uint clock () ) module: 'msvcrt.dll'
+]
 ]]]
 
 In our example, we've defined a new empty class, and a method named ==ticksSinceStart== on its class side.
@@ -79,8 +74,9 @@ If everything went ok, this expression will return the number of native clock ti
 To understand what happenned and how it worked, let us look at the binding definition again:
 
 [[[language=smalltalk
-FFITutorial class  >>  ticksSinceStart
+FFITutorial class  >>  ticksSinceStart [
 	^ self ffiCall: #( uint clock () ) module: 'libc.so.6'
+]
 ]]]
 
 The binding we just created is also called an FFI callout, as it calls a function in the ''outside world'' (the C world).
@@ -131,28 +127,32 @@ FFILibrary subclass: #LibC
 	classVariableNames: ''
 	package: 'UnifiedFFI-Libraries'
 
-LibC >> macModuleName
+LibC >> macModuleName [
 	^ 'libc.dylib'
+]
 
-LibC >> unixModuleName
+LibC >> unixModuleName [
 	^ 'libc.so.6'
+]
 
-LibC >> win32ModuleName
+LibC >> win32ModuleName [
 	"While this is not a 'libc' properly, msvcrt has the functions we are defining here"
 	^ 'msvcrt.dll'
+]
 ]]]
 
 With this platform-aware library object, we can re-implement our binding in a platform-independent fashion:
 
 [[[language=smalltalk
-FFITutorial class  >>  ticksSinceStart
+FFITutorial class  >>  ticksSinceStart [
 	^ self ffiCall: #( uint clock () ) module: LibC
+]
 ]]]
 
 As you can see, it is very easy to express library details dynamically. Here is a more complex example showing how the Cairo library specifies its location on different unix-like platforms:
 
 [[[language=smalltalk
-CairoLibrary >> unixModuleName
+CairoLibrary >> unixModuleName [
 		"On different flavors of linux the path to library may differ
 		depending on OS distro or whether system is 32 or 64 bit."
 
@@ -164,6 +164,7 @@ CairoLibrary >> unixModuleName
 			path asFileReference exists ifTrue: [ ^ path ] ].
 
 		self error: 'Cannot locate cairo library. Please check if it installed on your system'
+]
 ]]]
 
 This is very useful and is the recommended way of dealing with libraries, instead of hardcoding module names.
@@ -172,11 +173,13 @@ Finally, note that any class can also define a method ==ffiModuleName== to provi
 Callouts which do not specify a module would then use this default module.
 
 [[[language=smalltalk
-FFITutorial class >> ffiLibraryName
+FFITutorial class >> ffiLibraryName [
 	^ LibC
+]
 
-FFITutorial class >> ticksSinceStart
+FFITutorial class >> ticksSinceStart [
 	^ self ffiCall: #( uint clock () )
+]
 ]]]
 
 @@note ==ffiLibraryName== is a terrible name I forgot to change. It should be just ==ffiLibrary== (but now changing it is not so easy...)
@@ -197,8 +200,9 @@ int abs ( int n );
 
 ""Smalltalk binding.""
 [[[language=smalltalk
-FFICExamples class >> abs: anInteger
+FFICExamples class >> abs: anInteger [
 	^ self ffiCall: #( int abs (int anInteger) ) module: LibC
+]
 ]]]
 
 Compared to the previous example, we changed the name of the function and added an argument.
@@ -235,8 +239,9 @@ Imagine that we want to have a wrapper that always calls the ==abs== function wi
 Then we directly define it as follows:
 
 [[[language=smalltalk
-FFICExamples class >> absMinusFortyTwo
+FFICExamples class >> absMinusFortyTwo [
 	^ self ffiCall: #( int abs (-42) ) module: LibC
+]
 ]]]
 
 Note that we omitted the type of the argument and directly write  ==int abs (-42)== instead of writing
@@ -245,8 +250,9 @@ Note that we omitted the type of the argument and directly write  ==int abs (-42
 But, if the C function takes a float/double as argument for example, you must specify it in the signature:
 
 [[[language=smalltalk
-FFICExamples class >> floor: aFloat
+FFICExamples class >> floor: aFloat [
 	^ self ffiCall: #( double floor(double aFloat) ) module: LibC
+]
 ]]]
 
 @@todo Luc Examples with more complex literals: arrays, ...
@@ -271,15 +277,17 @@ Object subclass: #FFICContantExamples
 Then don't forget to initialize it properly:
 
 [[[language=smalltalk
-FFICContantExamples class >> initialize
+FFICContantExamples class >> initialize [
 	TheAnswer := -42.
+]
 ]]]
 
 And finally, in the callout code, we can use it like following:
 
 [[[language=smalltalk
-FFICContantExamples class >> absMinusFortyTwo
+FFICContantExamples class >> absMinusFortyTwo [
 	^ self ffiCall: #( int abs ( TheAnswer ) ) module: LibC
+]
 ]]]
 
 You can also pass ==self== or any instance variable as arguments to a C call.
@@ -288,8 +296,9 @@ Suppose you want to add the ==abs== function binding to the class ==SmallInteger
 In that case we simply add the ==absoluteValue== method to ==SmallInteger==, and we directly pass ==self== as illustrated below.
 
 [[[language=smalltalk
-SmallInteger >> absoluteValue
+SmallInteger >> absoluteValue [
 	^ self ffiCall: #( int abs (int self) ) module: LibC
+]
 ]]]
 
 It is is also possible to pass an instance variable, but we let you do it as an exercise :)
@@ -308,8 +317,9 @@ int strlen ( const char * str );
 
 ""Smalltalk binding"".
 [[[language=smalltalk
-FFICExamples class >> stringLength: aString
+FFICExamples class >> stringLength: aString [
 	^ self ffiCall: #( int strlen (String aString) ) module: LibC
+]
 ]]]
 
 !!! Example analysis
@@ -332,8 +342,9 @@ the relationship between both strings.
 
 ""Smalltalk binding""
 [[[language=smalltalk
-FFICExamples class >> stringCompare: aString with: anotherString
-	^ self ffiCall: #( int strcmp (String aString, String anotherString) ) module: LibC
+FFICExamples class >> stringCompare: aString with: anotherString [
+	^ self ffiCall: #( int strcmp (String aString, String anotherString) ) module: LibC	
+]
 ]]]
 
 Notice that you can add arguments by appending them to the arguments array, using a comma to separate them. Also
@@ -351,8 +362,9 @@ In the ==floor== example, the  result is converted from a double to a Float.
 But FFI-NB can also convert types a bit more complex than atomic types, like String
 
 [[[language=smalltalk
-FFICExamples >> #getEnv: aString
+FFICExamples >> #getEnv: aString [
 	^ self ffiCall: #( String getenv (String string) ) module: LibC
+]
 ]]]
 
 There is a mapping defined for each atomic type. About a bit more complex objects (like external objects or structures),
@@ -363,8 +375,9 @@ we will talk in following sections.
 Take this call as an example:
 
 [[[language=smalltalk
-FFICExamples class >> malloc: aNumber
+FFICExamples class >> malloc: aNumber [
 	^ self ffiCall: #( void * malloc ( int aNumber ) )
+]
 ]]]
 
 This is a special case of return: when there is a function who answers a ''void *''. In this case, since FFI-NB cannot know
@@ -388,8 +401,9 @@ Both ==ExternalAddress== and ==ExternalData== can be used as arguments when decl
 for example:
 
 [[[
-LibC >> memCopy: src to: dest size: n
+LibC >> memCopy: src to: dest size: n [
 	^ self ffiCall: #(void *memcpy(void *dest, const void *src, size_t n)
+]
 ]]]
 
 !!! External objects
@@ -400,9 +414,10 @@ This is confusing, so I will try to explain it better: When you allocate a regio
 to create a cairo surface, you can call this:
 
 [[[
-AthensCairoSurface class >> primImage: aFormat width: aWidth height: aHeight
+AthensCairoSurface class >> primImage: aFormat width: aWidth height: aHeight [
 	^ self ffiCall: #(AthensCairoSurface * cairo_image_surface_create ( int aFormat,
 	int aWidth, int aHeight) )
+]
 ]]]
 
 This will call the cairo function ==cairo_image_surface_create== but instead answer an ==ExternalAddress== it will create an
@@ -415,9 +430,10 @@ Any class in the system can be an external object as long as either:
 You can check for implementors of ==asExternalTypeOn:== for examples, but they usually looks like this one:
 
 [[[
-AthensCairoCanvas class >> asExternalTypeOn: generator
+AthensCairoCanvas class >> asExternalTypeOn: generator [
 	"use handle ivar to hold my instance (cairo_t)"
 	^ FFIExternalObjectType objectClass: self
+]
 ]]]
 
 @@note if you want to add the resource to an automatic free mechanism (to make GC frees also the external object), you need
@@ -466,23 +482,25 @@ FFIExternalStructure subclass: #Div_t
 
 
 [[[
-Div_t class  >>  fieldsDesc
+Div_t class  >>  fieldsDesc [
 	"self rebuildFieldAccessors"
 	^ #(
 		int quot;
 		int rem;
 		)
+]
 ]]]
 
 [[[
-LibC class  >>  div_numer: numer denom: denom
+LibC class  >>  div_numer: numer denom: denom [
 	^ self ffiCall: #( Div_t div( int numer, int denom ) ) module: LibC
+]
 ]]]
 
 So lets try it out.
 
 [[[
-LibC div_numer: 7 denom: 2
+LibC div_numer: 7 denom: 2 
 	"Div_t ( quot: 3	rem: 1)"
 ]]]
  
@@ -509,12 +527,13 @@ Then, we need to describe the structure. This is done by overriding the ==FFIExt
 The syntax used to do it is pretty close to the C syntax:
 
 [[[
-MyStructure class >> #fieldsDesc
+MyStructure class >> #fieldsDesc [
 	^ #(
 	uint8 id;
 	char * struct_name;
 	uint name_length;
 	)
+]
 ]]]
 
 Once the structure is described, you can generate the accessors by evaluating ==MyStructure rebuildFieldAccessors==.
@@ -546,22 +565,24 @@ So to get the actual string, you need to take the char pointer and read ==name_l
 procedure in a new method:
 
 [[[
-MyStructure >> #structName
+MyStructure >> #structName [
 	^ String
 		newFrom: (FFIExternalArray
 					fromHandle: self struct_name getHandle type: 'char' size: self name_length)
+]
 ]]]
 
 We want the same thing for the mutator. We do not want to matter with ==name_length== when setting ==struct_name==:
 
 [[[
-MyStructure >> #structName: aString
+MyStructure >> #structName: aString [
 	| externalArray |
 	externalArray := FFIExternalArray externalNewType: 'char' size: aString size.
 	aString doWithIndex: [ :char :i |
 		externalArray at: i put: char ].
 	self struct_name: externalArray.
 	self name_length: aString size.
+]
 ]]]
 
 With the two preceding methods added, you can use ==MyStructure== the same way you use any other Pharo object:
@@ -581,8 +602,80 @@ myStruct structName. "bar"
 ]]]
 
 
-
 !!! Arrays
+In Pharo, arrays can have any kind of objects inside, but that's not the case in C where each array can contain an unique type. 
+
+UnifiedFFI provides two ways to declare C arrays: ==FFIExternalArray== and ==FFIArrayType==. As their name suggest there are subtle difference 
+between them.
+
+- ==FFIExternalArray== can be used to instantiate external arrays of any type.
+- ==FFIArrayType== can be used to declare new types that are arrays (something like a C typedef declaration).
+
+!!!! FFIExternalArray
+An ==FFIExternalArray== is an easy way to pass arrays to functions, as you can see in this example :
+
+[[[
+FFICallback class >> primQsort: array with: count with: size with: compare [
+	self
+		ffiCall: #(void qsort (FFIExternalArray array, size_t count, size_t size, FFICallback compare)) 
+		module: LibC
+]
+]]]
+
+this declaration will receive an array of any kind and it will pass it to the ==qsort== function. This is possible because in C, an array 
+is not more than a reference checked by the compilator (which we are skipping). To ''use'' this function, we need to declare a type like this: 
+
+[[[
+array := FFIExternalArray externalNewType: 'double' size: 100.
+1 to: 100 do: [ :i| values at: i put: Random new next ].
+
+FFICallback class 
+	primQsort: array
+	with: 100 
+	with: array type typeSize 
+	with: aCallback. "We will see callbacks in the next entry ""Callbacks"""
+]]]
+
+This approach is very simple, but it fails to work in the case of structures, because with ==FFIExternalArray== we know the size of the array 
+just after instantiating it. To fix this problem we use ==FFIArrayType==.
+
+!!!! FFIArrayType
+==FFIArrayType== works as ==FFIExternalArray== for most of the cases (after all, it inherits from it) but instead its parent, ==FFIArrayType== acts 
+defining ""a new type"", as it would be using typedef in C. 
+
+Declare a new array type is very simple : 
+
+[[[
+Example class >> initialize [
+	Char128 := FFITypeArray ofType: #char size: 128.
+	array := Chat128 new.
+]
+]]]
+
+This will declare an array equivalent to ==char[128]== and it will instantiate a variable of that array. 
+In the example, we use a class variable ==Char128== to store our new defined type, hence it will be accesible in all the hierarchy. If we want 
+a more visible type, we can put it in a ==SharedPool== to make it accessible. 
+
+This approach can be used in any circunstance but is particulary useful for using with structures, because structures need to be allocated with a
+precise size and alignment.
+
+For example, we can instantiate an structure of this type in C: 
+
+[[[
+struct example {
+	char[128] chars;
+}
+]]]
+
+in Pharo : 
+
+[[[
+Example class >> fieldsDesc [
+	^ #(
+	Char128 chars
+	)
+]
+]]]
 
 !!! Callbacks
 
@@ -598,7 +691,76 @@ To simplify, we do ""the same"" but instead injecting machine code, we create by
 @@note todo here design explanation.
 
 
-!!! Non conventional casts
+!!! Conclusion
+
+
+!!! Annexes
+
+
+!!!! Casting 
+In Pharo, “casting” as made in C is not necessar since this is just a way to tell the C compiler that a pointer is form a certain 
+type (but is always a pointer, and in machine code is always the same). Nevertheless, there are some usages were we may want to see 
+pointers as specific instances in our image. 
+Next examples will cover this cases.
+
+!!!!! Converting pointers to objects of any type
+So, here you will do something like this: 
+
+Let's suppose you want to execute something like this (taken from a question on the pharo mailing list): 
+
+[[[
+Iterator >> asCollectionOfType: aTypeName [
+	| result address typeClass |
+	
+	result := OrderedCollection new.
+	address := ExternalAddress new.
+	typeClass := FFIExternalType resolveType: aTypeName.
+	[ self iterator_next: address ] 
+		whileTrue: [ result add: (address castTo: typeClass) ].
+  ^result
+ ]
+
+Iterator >> iterator_next: data [
+	^ self ffiCall: #(Boolean iterator_next (Iterator self, void** data))
+]
+]]]
+
+
+This is, you want to iterate a collection of certain type and converting it to proper instances on Pharo side. 
+
+While you could always implement ==#castTo:== simply like this: 
+
+[[[
+ExternalAddress >> castTo: aClass [
+	^ aClass fromHandle: self
+]
+]]]
+
+But you will still have a problem if your type if your type is an “atomic” type, like ==int==, ==long==, etc. because those values are passed 
+“by value” and not by pointer, so you will need to decode them. In this case, I would implement a method extension and use double dispatch: 
+
+[[[
+ExternalAddress >> castTo: aClass [
+	^ aClass valueFromHandle: self
+]
+
+FFIExternalType class >> valueFromHandle: anAddress [
+	“This is used for structures, but we can reuse them :)"
+	^ self new handle: anAddress at: 1 
+]
+		
+FFIExternalReference class >> valueFromHandle: anAddress [
+	^ self fromHandle: anAddress
+]
+
+FFIExternalStructure class >> valueFromHandle: anAddress [
+	^ self fromHandle: anAddress
+]
+]]]
+
+Then your cast will work as expected.
+
+!!!!! Non conventional casts
 Casting in C is trivial. You can do something like this:
 
 [[[
@@ -612,11 +774,6 @@ In Pharo this "casting" is not so easy, and we need to declare this kind of vari
 [[[
 var := ExternalAddress fromAddress: 16r42000000.
 ]]]
-
-
-!!! Conclusion
-
-
 
 !! FAQs
 
