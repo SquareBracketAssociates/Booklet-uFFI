@@ -35,7 +35,7 @@ Object subclass: #FFITutorial
 	classVariableNames: ''
 	package: 'FFITutorial'
 
-FFITutorial class  >>  ticksSinceStart [
+FFITutorial class >> ticksSinceStart [
   ^ self ffiCall: #( uint clock () ) module: 'libc.so.6'
 ]
 ]]]
@@ -44,14 +44,14 @@ FFITutorial class  >>  ticksSinceStart [
 
 For Mac OS:
 [[[language=smalltalk
-FFITutorial class  >>  ticksSinceStart [
+FFITutorial class >> ticksSinceStart [
   ^ self ffiCall: #( uint clock () ) module: 'libc.dylib'
 ]
 ]]]
 
 For Windows:
 [[[language=smalltalk
-FFITutorial class  >>  ticksSinceStart [
+FFITutorial class >> ticksSinceStart [
   ^ self ffiCall: #( uint clock () ) module: 'msvcrt.dll'
 ]
 ]]]
@@ -74,7 +74,7 @@ If everything went ok, this expression will return the number of native clock ti
 To understand what happenned and how it worked, let us look at the binding definition again:
 
 [[[language=smalltalk
-FFITutorial class  >>  ticksSinceStart [
+FFITutorial class >> ticksSinceStart [
 	^ self ffiCall: #( uint clock () ) module: 'libc.so.6'
 ]
 ]]]
@@ -144,7 +144,7 @@ LibC >> win32ModuleName [
 With this platform-aware library object, we can re-implement our binding in a platform-independent fashion:
 
 [[[language=smalltalk
-FFITutorial class  >>  ticksSinceStart [
+FFITutorial class >> ticksSinceStart [
 	^ self ffiCall: #( uint clock () ) module: LibC
 ]
 ]]]
@@ -450,7 +450,7 @@ Then behaviour is divided:
 -A.2) finalize will just call a free assuming ExternalAddress was allocated (which is a malloc)
 
 - B.1) for all FFIExternalReference, it will register for finalisation what ==resourceData== answers (normally, the handle of the object)
-- B.2) finalisation process will call the object class  >>  finalizeResourceData: method, with the==resourceData== result as parameter
+- B.2) finalisation process will call the object class >> finalizeResourceData: method, with the==resourceData== result as parameter
 - B.3) each kind of external reference can decide how to free that data (by default is also just freeing).
 
 An example of this is how AthensCairoSurface works.
@@ -482,7 +482,7 @@ FFIExternalStructure subclass: #Div_t
 
 
 [[[
-Div_t class  >>  fieldsDesc [
+Div_t class >> fieldsDesc [
 	"self rebuildFieldAccessors"
 	^ #(
 		int quot;
@@ -492,7 +492,7 @@ Div_t class  >>  fieldsDesc [
 ]]]
 
 [[[
-LibC class  >>  div_numer: numer denom: denom [
+LibC class >> div_numer: numer denom: denom [
 	^ self ffiCall: #( Div_t div( int numer, int denom ) ) module: LibC
 ]
 ]]]
@@ -678,6 +678,36 @@ Example class >> fieldsDesc [
 ]]]
 
 !!! Callbacks
+A callback is, as its name says, when an external function calls back Pharo to inform/require/do something. The typical example done with the C 
+function qsort (quick sort), which calls a comparator function to determine element position. 
+
+This example can be found on ==FFICallback class >> exampleCqsort==.
+
+To pass a callback to a C function, we need to declate it providing the expected signature and the execution block: 
+
+[[[
+callback := FFICallback
+	signature:  #(int (const void *arg1, const void *arg2))
+	block: [ :arg1 :arg2 | ((arg1 doubleAt: 1) - (arg2 doubleAt: 1)) sign ].
+]]]
+
+This will declare an anonymous function that receives as parameter two void pointers (arg1, arg2) and answers an int. 
+
+The function that will receive this callback as argument needs to be modified to declare the correct type (as is shown also in FFIExternalArray section): 
+
+[[[
+FFICallback class >> primQsort: array with: count with: size with: compare [
+	self
+		ffiCall: #(void qsort (FFIExternalArray array, size_t count, size_t size, FFICallback compare)) 
+		module: LibC
+]
+]]]
+
+then you will just use as any other regular parameter.
+
+Some remarks: 
+- You need to be really careful on how you keep your callbacks: since you do not know when it will be executed, there is always the possibility for the VM to garbage collect them while in execution. In that case your image will crash. The best solution here is to keep a strong reference of the callback while you know it will be alive.
+- Callbacks are tricky! Do not over-use them, the VM is not prepared to execute callbacks inside callbacks ot other special behaviours (it may be in the future, but for now best is to keep callbacks as small as possible).
 
 !!! Handles (Windows)
 
