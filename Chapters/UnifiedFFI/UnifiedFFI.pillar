@@ -709,20 +709,64 @@ Some remarks:
 - You need to be really careful on how you keep your callbacks: since you do not know when it will be executed, there is always the possibility for the VM to garbage collect them while in execution. In that case your image will crash. The best solution here is to keep a strong reference of the callback while you know it will be alive.
 - Callbacks are tricky! Do not over-use them, the VM is not prepared to execute callbacks inside callbacks ot other special behaviours (it may be in the future, but for now best is to keep callbacks as small as possible).
 
+!!! Opaque references
+UnifiedFFI can work with opaque types (An opaque datatype is an structure which fields are not visible and is always accessed through a pointer 
+to it, see *https://en.wikipedia.org/wiki/Opaque_data_type*).
+This is usefull when working with obscure types (types we do not know its composition).
+Take this as an example (taken from SQLite bindings): 
+
+[[[ 
+typedef struct sqlite3 sqlite3;
+typedef struct sqlite3_stmt sqlite3_stmt;
+]]]
+
+this defines a type of a structure, and then is used along the api in this way: 
+
+[[[
+int sqlite3_open(char *filename, sqlite3 **handle);
+char *sqlite3_column_name(sqlite3_stmt* aStatement, int aColumn)
+]]]
+
+this means we always access them through a reference. Now, we could declare the pointer to the structures (using ==FFIExternalObject==), 
+but then our declarations wouldn't be as close to C as we want, as we need to change the declaration.
+
+This is where ==FFIOpaqueObject== come to help: we declare it and then we use it always as reference.
+
+In the case of the example, it would work like this: 
+
+[[[ 
+SQLite3 class >> initialize [
+	sqlite3 := #FFIOpaqueObject.
+	sqlite3_stmt :=	#FFIOpaqueObject.
+]
+
+SQLite3 class >> primOpen: filename handle: handle [
+	self ffiCall: #(int sqlite3_open(String filename, sqlite3 **handle)).
+]
+
+SQLite3 >> primColumnBlob: aStatement column: aColumn [
+	self ffiCall: #(const void *sqlite3_column_blob (sqlite3_stmt* aStatement, int aColumn))
+]
+]]]
+
 !!! Handles (Windows)
+Constant HANDLEs, as described in *Windows MSDN>https://msdn.microsoft.com/en-us/library/windows/desktop/ms724457(v=vs.85).aspx*
+are a special kind of external object who are accessed through numbers, therefore and ==ExternalAddress== is not appropriate to 
+describe it (since they are constants and external addresses represents disposable spaces from memory).
 
+Is not clear this is necessary outside Windows, but according to documentation they are somekind analogous to unix's File Descriptors 
+(with some remarkable diferences, as documented *here>http://lackingrhoticity.blogspot.fr/2015/05/passing-fds-handles-between-processes.html*.
 
-!!! How does it works?
+Example: 
+[[[
+User32 class >> initialize [
+	HWND := #FFIConstantHandle.
+]
 
-In a very simplified way, old NativeBoost was taking the first calls to a method and transforming it into machine code, then reexecuting the method who now jumps and executes the code stored in the method.
-
-To simplify, we do ""the same"" but instead injecting machine code, we create bytecodes to translate correctly input and output parameters, then we add a call to the function.
-
-@@note todo here design explanation.
-
-
-!!! Conclusion
-
+User32 class >> getActiveWindow [
+	^ self ffiCall: #(HWND GetActiveWindow())
+]
+]]]
 
 !!! Annexes
 
