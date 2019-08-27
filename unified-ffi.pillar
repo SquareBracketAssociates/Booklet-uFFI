@@ -1,4 +1,3 @@
 
-
-${inputFile:Chapters/UnifiedFFI/UnifiedFFI.pillar}$
+${inputFile:path=Chapters/UnifiedFFI/UnifiedFFI.pillar}$
 
