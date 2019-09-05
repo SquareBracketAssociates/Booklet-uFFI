@@ -1,0 +1,315 @@
+!!! External address
+
+External addresses (contained in the class ==ExternalAddress==) is the way we represent any kind of data ''outside''
+Smalltalk. That means data (pointers, structures, arrays) who are allocated in the heap.
+
+An ==ExternalAddress== can be:
+
+- an allocation of memory (you can use ==ExternalAddress class >> allocate:== or ==ExternalAddress class >> gcallocate:==). Note that in case of ==#allocate:== you will need to ==#free== the external address later (==#gcallocate:== does that work for you).
+- the result of a function call (usually it will come as part of an ==ExternalData==)
+
+==ExternalData== represents an ==ExternalAddress== with an C type associated. For example,
+
+Both ==ExternalAddress== and ==ExternalData== can be used as arguments when declaring functions with pointers as parameters,
+for example:
+
+[[[
+LibC >> memCopy: src to: dest size: n [
+	^ self ffiCall: #(void *memcpy(void *dest, const void *src, size_t n)
+]
+]]]
+
+!!! External objects
+
+==FFIExternalObject== represents an object in the heap. An external object is a reference to any kind of data allocated in the heap mapped to a Smalltalk object.
+
+This is confusing, so I will try to explain it better: When you allocate a region of memory in the heap, you get a pointer to that location, which does not represent anything. But often, frameworks will allocate structures, pointers, etc. which actually represents "an object" (not in the same sense as a Smalltalk object, but can be interpreted like one). For example,
+to create a cairo surface, you can call this:
+
+[[[
+AthensCairoSurface class >> primImage: aFormat width: aWidth height: aHeight [
+	^ self ffiCall: #(AthensCairoSurface * cairo_image_surface_create ( int aFormat,
+	int aWidth, int aHeight) )
+]
+]]]
+
+This will call the cairo function ==cairo_image_surface_create== but instead answer an ==ExternalAddress== it will create an
+instance of ==AthensCairoSurface==, so you can treat the allocated pointer as an object.
+
+Any class in the system can be an external object as long as either:
+- it inherits from ==FFIExternalObject==; or
+- it implements in its ""class side"" the method ==asExternalTypeOn:==.
+
+You can check for implementors of ==asExternalTypeOn:== for examples, but they usually looks like this one:
+
+[[[
+AthensCairoCanvas class >> asExternalTypeOn: generator [
+	"use handle ivar to hold my instance (cairo_t)"
+	^ FFIExternalObjectType objectClass: self
+]
+]]]
+
+@@note if you want to add the resource to an automatic free mechanism (to make GC frees also the external object), you need
+to call ==autoRelease== (in case of children from FFIExternalObject) or implement similar mechanism.
+
+@@note FFIExternalObject replaces NBExternalObject
+
+!!! Structures
+The ==FFIExternalStructure== object is used to manipulate C structures from Pharo.
+From the standard C library we can use the ==div()== function as an example.
+Given a numerator and denominator, it returns a structure holding the quotient and remainder. In stdlib.h we find these definitions:
+
+[[[
+typedef struct
+{
+	int quot;	/* Quotient.  */
+	int rem;	/* Remainder.  */
+} div_t;
+
+div_t div (int __numer, int __denom)
+]]]
+
+Converting these to FFI definitions we get...
+[[[
+FFIExternalStructure subclass: #Div_t
+	instanceVariableNames: ''
+	classVariableNames: ''
+	package: 'UnifiedFFI-ExampleLibC'
+]]]
+
+
+[[[
+Div_t class >> fieldsDesc [
+	"self rebuildFieldAccessors"
+	^ #(
+		int quot;
+		int rem;
+		)
+]
+]]]
+
+[[[
+LibC class >> div_numer: numer denom: denom [
+	^ self ffiCall: #( Div_t div( int numer, int denom ) ) module: LibC
+]
+]]]
+
+So lets try it out.
+
+[[[
+LibC div_numer: 7 denom: 2 
+	"Div_t ( quot: 3	rem: 1)"
+]]]
+ 
+Now for another example, imagine you need to manipulate the following C structure from Pharo:
+
+[[[
+struct My_Structure {
+	uint8 id;
+	char * name;
+	uint name_length;
+}
+]]]
+
+The first step is to create a subclass of ==FFIExternalStructure== that we name ==MyStructure==:
+
+[[[
+FFIExternalStructure subclass: #MyStructure
+	instanceVariableNames: ''
+	classVariableNames: ''
+	package: 'FFIDemo'
+]]]
+
+Then, we need to describe the structure. This is done by overriding the ==FFIExternalStructure class >> #fieldsDesc== method.
+The syntax used to do it is pretty close to the C syntax:
+
+[[[
+MyStructure class >> #fieldsDesc [
+	^ #(
+	uint8 id;
+	char * struct_name;
+	uint name_length;
+	)
+]
+]]]
+
+Once the structure is described, you can generate the accessors by evaluating ==MyStructure rebuildFieldAccessors==.
+This will generate accessors and mutators on instance side of ==MyStructure==.
+
+Now we are going to make the use of this structure a bit easier. As you saw before, the structure holds a char pointer
+to represent its name (as a ==String==) and it also holds the length of this ==String== in ==name_length== field.
+
+Right now, you can use the structure like this:
+[[[
+myStruct := MyStructure externalNew. "Use #externalNew to create the object on the external heap."
+
+"Create an external array of type char to hold the name."
+newName := FFIExternalArray externalNewType: 'char' size: 3.
+'foo' doWithIndex: [ :char :i |
+	newName at: i put: char ].
+
+"Set the name."
+myStruct struct_name: newName.
+myStruct name_length: newName size.
+
+"Get the name."
+structName := String
+	newFrom: (FFIExternalArray
+				fromHandle: myStruct struct_name getHandle type: 'char' size: myStruct name_length)
+]]]
+
+So to get the actual string, you need to take the char pointer and read ==name_length== char. We are going to wrap this
+procedure in a new method:
+
+[[[
+MyStructure >> #structName [
+	^ String
+		newFrom: (FFIExternalArray
+					fromHandle: self struct_name getHandle type: 'char' size: self name_length)
+]
+]]]
+
+We want the same thing for the mutator. We do not want to matter with ==name_length== when setting ==struct_name==:
+
+[[[
+MyStructure >> #structName: aString [
+	| externalArray |
+	externalArray := FFIExternalArray externalNewType: 'char' size: aString size.
+	aString doWithIndex: [ :char :i |
+		externalArray at: i put: char ].
+	self struct_name: externalArray.
+	self name_length: aString size.
+]
+]]]
+
+With the two preceding methods added, you can use ==MyStructure== the same way you use any other Pharo object:
+
+[[[
+"Of course you still need to use #externalNew!"
+myStruct := MyStructure externalNew 
+	structName: 'foo';
+	id: 42;
+	yourself.
+
+myStruct structName. "foo"
+myStruct id. "42"
+
+myStruct structName: 'bar'.
+myStruct structName. "bar"
+]]]
+
+
+!!! Arrays
+In Pharo, arrays can have any kind of objects inside, but that's not the case in C where each array can contain an unique type. 
+
+UnifiedFFI provides two ways to declare C arrays: ==FFIExternalArray== and ==FFIArrayType==. As their name suggest there are subtle difference 
+between them.
+
+- ==FFIExternalArray== can be used to instantiate external arrays of any type.
+- ==FFIArrayType== can be used to declare new types that are arrays (something like a C typedef declaration).
+
+!!!! FFIExternalArray
+An ==FFIExternalArray== is an easy way to pass arrays to functions, as you can see in this example :
+
+[[[
+FFICallback class >> primQsort: array with: count with: size with: compare [
+	self
+		ffiCall: #(void qsort (FFIExternalArray array, size_t count, size_t size, FFICallback compare)) 
+		module: LibC
+]
+]]]
+
+this declaration will receive an array of any kind and it will pass it to the ==qsort== function. This is possible because in C, an array 
+is not more than a reference checked by the compilator (which we are skipping). To ''use'' this function, we need to declare a type like this: 
+
+[[[
+array := FFIExternalArray externalNewType: 'double' size: 100.
+1 to: 100 do: [ :i| values at: i put: Random new next ].
+
+FFICallback class 
+	primQsort: array
+	with: 100 
+	with: array type typeSize 
+	with: aCallback. "We will see callbacks in the next entry ""Callbacks"""
+]]]
+
+This approach is very simple, but it fails to work in the case of structures, because with ==FFIExternalArray== we know the size of the array 
+just after instantiating it. To fix this problem we use ==FFIArrayType==.
+
+!!!! FFIArrayType
+==FFIArrayType== works as ==FFIExternalArray== for most of the cases (after all, it inherits from it) but instead its parent, ==FFIArrayType== acts 
+defining ""a new type"", as it would be using typedef in C. 
+
+Declare a new array type is very simple : 
+
+[[[
+Example class >> initialize [
+	Char128 := FFITypeArray ofType: #char size: 128.
+	array := Chat128 new.
+]
+]]]
+
+This will declare an array equivalent to ==char[128]== and it will instantiate a variable of that array. 
+In the example, we use a class variable ==Char128== to store our new defined type, hence it will be accesible in all the hierarchy. If we want 
+a more visible type, we can put it in a ==SharedPool== to make it accessible. 
+
+This approach can be used in any circunstance but is particulary useful for using with structures, because structures need to be allocated with a
+precise size and alignment.
+
+For example, we can instantiate an structure of this type in C: 
+
+[[[
+struct example {
+	char[128] chars;
+}
+]]]
+
+in Pharo : 
+
+[[[
+Example class >> fieldsDesc [
+	^ #(
+	Char128 chars
+	)
+]
+]]]
+
+!!! Opaque references
+UnifiedFFI can work with opaque types (An opaque datatype is an structure which fields are not visible and is always accessed through a pointer 
+to it, see *https://en.wikipedia.org/wiki/Opaque_data_type*).
+This is usefull when working with obscure types (types we do not know its composition).
+Take this as an example (taken from SQLite bindings): 
+
+[[[ 
+typedef struct sqlite3 sqlite3;
+typedef struct sqlite3_stmt sqlite3_stmt;
+]]]
+
+this defines a type of a structure, and then is used along the api in this way: 
+
+[[[
+int sqlite3_open(char *filename, sqlite3 **handle);
+char *sqlite3_column_name(sqlite3_stmt* aStatement, int aColumn)
+]]]
+
+this means we always access them through a reference. Now, we could declare the pointer to the structures (using ==FFIExternalObject==), 
+but then our declarations wouldn't be as close to C as we want, as we need to change the declaration.
+
+This is where ==FFIOpaqueObject== come to help: we declare it and then we use it always as reference.
+
+In the case of the example, it would work like this: 
+
+[[[ 
+SQLite3 class >> initialize [
+	sqlite3 := #FFIOpaqueObject.
+	sqlite3_stmt :=	#FFIOpaqueObject.
+]
+
+SQLite3 class >> primOpen: filename handle: handle [
+	self ffiCall: #(int sqlite3_open(String filename, sqlite3 **handle)).
+]
+
+SQLite3 >> primColumnBlob: aStatement column: aColumn [
+	self ffiCall: #(const void *sqlite3_column_blob (sqlite3_stmt* aStatement, int aColumn))
+]
+]]]

@@ -1,0 +1,31 @@
+!!! Callbacks
+A callback is, as its name says, when an external function calls back Pharo to inform/require/do something. The typical example done with the C 
+function qsort (quick sort), which calls a comparator function to determine element position. 
+
+This example can be found on ==FFICallback class >> exampleCqsort==.
+
+To pass a callback to a C function, we need to declate it providing the expected signature and the execution block: 
+
+[[[
+callback := FFICallback
+	signature:  #(int (const void *arg1, const void *arg2))
+	block: [ :arg1 :arg2 | ((arg1 doubleAt: 1) - (arg2 doubleAt: 1)) sign ].
+]]]
+
+This will declare an anonymous function that receives as parameter two void pointers (arg1, arg2) and answers an int. 
+
+The function that will receive this callback as argument needs to be modified to declare the correct type (as is shown also in FFIExternalArray section): 
+
+[[[
+FFICallback class >> primQsort: array with: count with: size with: compare [
+	self
+		ffiCall: #(void qsort (FFIExternalArray array, size_t count, size_t size, FFICallback compare)) 
+		module: LibC
+]
+]]]
+
+then you will just use as any other regular parameter.
+
+Some remarks: 
+- You need to be really careful on how you keep your callbacks: since you do not know when it will be executed, there is always the possibility for the VM to garbage collect them while in execution. In that case your image will crash. The best solution here is to keep a strong reference of the callback while you know it will be alive.
+- Callbacks are tricky! Do not over-use them, the VM is not prepared to execute callbacks inside callbacks ot other special behaviours (it may be in the future, but for now best is to keep callbacks as small as possible).

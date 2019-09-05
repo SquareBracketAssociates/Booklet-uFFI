@@ -1,0 +1,296 @@
+!! Foreign Function Interface and Call-outs
+
+A Foreign Function Interface (FFI) is a mechanism allowing programs written in one language to use resources written in another language.
+Although in theory FFI interfaces can happen between different languages, in general programs interact with libraries written in the C language, because C compilers have a predictable way to compile functions and structures. Choosing C as an FFI target has two main advantages: first, basing ourselves on such "standard" formats, we can build tools that simplify the interoperability with existing C libraries; second, C APIs can be used as a bridge between different systems just by exposing a C API.
+
+This booklet shows one of such FFI tools for Pharo: the Unified FFI framework, or uFFI for short.
+uFFI is a framework that eases the communication between Pharo and external C libraries, so you are able ultimately to call functions in C libraries.
+Calling functions being the final objective of somebody using FFI, you will see that uFFI helps with several other concerns such as finding such functions, transform data from the Pharo world to the C world and vice-versa, access C structures, define C-to-Pharo callbacks and others.
+
+uFFI has been developed by E. Lorenzano, and received many contributions over the years from Pharo's open source community.
+
+!!! Calling a simple external function
+To illustrate the purpose and usage of uFFI, we will start with an example.
+Suppose that you want to know the amount of time the image has been running by calling the underlying OS function
+named ==clock==. This function is part of the standard C library (==libc==). Its C declaration is:
+
+[[[
+clock_t clock(void);
+]]]
+
+For the sake of simplicity, let's consider that ==clock=='s return type is an unsigned ==uint== instead of ==clock\_t==.
+We will discuss types, conversions and typedefs in subsequent sections.
+This would result in the following function signature:
+
+[[[
+uint clock (void)
+]]]
+
+To call ==clock== using uFFI, we need to define a binding between a Pharo method and the ==clock== function.
+FFI bindings are classes and methods that provide an object-oriented style to access the C world, implementing all the glue required between the Pharo and the C world.
+To write our first binding, let's start by defining a new class ==FFITutorial==.
+This class will act as a module and encapsulate not only the functions we want to call but also any state we would like to store.
+To access the ==clock== function we then define a method in our ==FFITutorial== class using the ==ffiCall:module:== message to specify the signature of the C function and where it is defined. We will technically refer to this binding as a ''callout'', as it calls a function in the ''outside world'' (the C world).
+
+[[[language=smalltalk
+Object subclass: #FFITutorial
+	instanceVariableNames: ''
+	classVariableNames: ''
+	package: 'FFITutorial'
+  
+FFITutorial class >> ticksSinceStart [
+  ^ self ffiCall: #( uint clock () ) module: 'libc.so.6'
+]
+]]]
+
+The module argument above is an example for linux systems. For this code to run on other platforms you need to replace the =='libc.so.6'== string by e.g. =='libc.dylib'== for OSX or =='msvcrt.dll'== for windows. Following there are the equivalent definitions for OSX and Windows:
+
+[[[language=smalltalk
+FFITutorial class >> ticksSinceStart [
+  ^ self ffiCall: #( uint clock () ) module: 'libc.dylib'
+]
+]]]
+
+[[[language=smalltalk
+FFITutorial class >> ticksSinceStart [
+  ^ self ffiCall: #( uint clock () ) module: 'msvcrt.dll'
+]
+]]]
+
+Finally, you can use your freshly created bindings in a playground by inspecting or printing the following expression:
+
+[[[language=smalltalk
+FFITutorial ticksSinceStart
+]]]
+
+If everything went ok, this expression will return the number of native clock ticks since the Pharo process started.
+
+!!! Analyzing the FFI callout
+
+From the simple example we have run in the previous section, we can already learn several things.
+For starters, let us look at the binding definition again:
+
+[[[language=smalltalk
+FFITutorial class >> ticksSinceStart [
+	^ self ffiCall: #( uint clock () ) module: 'libc.so.6'
+]
+]]]
+
+This callout binding, a method, is named ==ticksSinceStart==, which is different to the function we are calling.
+Indeed, uFFI does not impose any restriction on how to call your methods, which may come in handy to decouple your programs from underlying C-level implementation details.
+Then, we use the method ==ffiCall:module:== defined by uFFI, that takes the target function signature and a library name, and makes all the necessary work for the callout:
+- it looks-up the specified library in our system (==libc==, ==msvcrt==...)
+- it loads it in memory
+- it looks-up the ==clock== function in the library
+- it performs the call to the function
+- it transforms the return value (an ==uint==) into a Pharo integer
+
+Regarding function signatures, in our example the signature is 
+
+[[[
+#(uint clock ())
+]]]
+
+specifying that the function name is ==clock==, it has no parameters, and its return type is of type ==unit==.
+Basically, if you strip down the outer ==#()==, what is inside is a C function prototype that is very close to normal C syntax.
+This is intentionally done so that in most cases you can actually copy-and-paste a raw C function declaration, taken from a header file or documentation, and it is ready for use.
+The second argument - in our example =='libc.so.6'== - is the name of the library that contains the function.
+The avid reader will notice that our binding is platform dependent, as it will in a single platform depending on the value chosen as librart.
+We will explore how to define bindings in a platform-independent way in the following section.
+
+
+!!! Notes on Value Marshalling
+
+To fully understand the previous example, the last thing we need to explain is how the returned ==uint== value gets transformed into a Pharo ==SmallInteger==.
+This conversion of values between different languages is called ''marshalling'', and is in most cases managed automatically by uFFI.
+Indeed, uFFI internally maps standard C values to Smalltalk objects, for example:
+- types ==int==, ==uint==, ==long==, ==ulong== are mapped to Pharo integers (small or long integers depending on the size of the platform).
+- types ==float== and ==double== are mapped to Pharo floats.
+
+Value marshalling is crucial for a correct behaviour of the bindings, particularly because the C world is closely-tied to the underlying machine.
+Indeed, C values are bits and bytes in registers and memory, and can be interpreted in many different ways by the Pharo runtime.
+For example, the C integer value 0x00000000 can be the interpreterd as the small integer 0, as the ''false'' object or as a null pointer depending on the marshalling rules.
+This means that the binding developer needs to correctly describe the types of their bindings so uFFI correctly interprets and transforms those values.
+
+In following chapters we will explore the marshalling rules more in detail and how they apply not only for return values but also for arguments.
+Moreover, we will study how to define your own user-defined data types and type mappings, to customize the marshalling for your special needs.
+
+!!! Libraries
+
+We saw before that a callout binding requires us to specify a module or library, which uFFI uses to look-up the given function.
+In our previous example, we defined that the ==clock== function was inside the standard C library, i.e., ==libc.so.6== in a unix system.
+However, this solution was not portable enough: if we want to load and run this code in a different platform, we needed to change the library name to match our local system.
+Library will not necessarily have the same name, or be located in the same place, on all platforms.
+One way to overcome this issue would be to define a binding per platform, and decide which one to call based on the platform as follows.
+
+[[[language=smalltalk
+FFITutorial class >> ticksSinceStart [
+  self platform isWindows
+    ifTrue: [ ^ self ticksSinceStartWindows ].
+  self platform isUnix
+    ifTrue: [ ^ self ticksSinceStartUnix ].
+  self platform isOSX
+    ifTrue: [ ^ self ticksSinceStartOSX ].
+  self error: 'Non supported platform'
+]
+
+FFITutorial class >> ticksSinceStartUnix [
+  ^ self ffiCall: #( uint clock () ) module: 'libc.so.6'
+]
+
+FFITutorial class >> ticksSinceStartOSX [
+  ^ self ffiCall: #( uint clock () ) module: 'libc.dylib'
+]
+
+FFITutorial class >> ticksSinceStartWindows [
+  ^ self ffiCall: #( uint clock () ) module: 'msvcrt.dll'
+]
+]]]
+
+This means that the binding code is repeated three times, and changing the binding now requires changing three bindings.
+This still looks simple enough for our ==clock== binding but repeating the code of complex bindings may not be an optimal solution.
+uFFI solves this problem by using library objects instead of plain strings.
+A library object represents a library independently of its platform as an instance of ==FFILibrary==.
+This library defines methods ==macModuleName==, ==unixModuleName== and ==win32ModuleName== which uFFI queries to lookup the correct library name given the current platform.
+Such lookup can even be as complex as dynamically looking for a correct version of library in different directories in your system as we will see later on.
+For our example, we can define a library ==MyLibC== as follows.
+
+[[[language=smalltalk
+FFILibrary subclass: #MyLibC
+	instanceVariableNames: ''
+	classVariableNames: ''
+	package: 'UnifiedFFI-Libraries'
+
+MyLibC >> macModuleName [
+	^ 'libc.dylib'
+]
+
+MyLibC >> unixModuleName [
+	^ 'libc.so.6'
+]
+
+MyLibC >> win32ModuleName [
+	"While this is not a 'libc' properly, msvcrt has the functions we are defined here"
+	^ 'msvcrt.dll'
+]
+]]]
+
+Finally, we rewrite our binding to specify our library instead of the library name string.
+
+[[[language=smalltalk
+FFITutorial class >> ticksSinceStart [
+	^ self ffiCall: #( uint clock () ) module: MyLibC
+]
+]]]
+
+!!! Library Lookup
+
+The ==macModuleName==, ==unixModuleName== and ==win32ModuleName== methods allow us developers to have different strategies to lookup for libraries and functions depending on the platform.
+If these methods return a relative path, the libraries will be looked-up in common library directories in the system or close to the virtual machine executable.
+If they return an absolute path, the default system locations are overriden and only the specified path will be checked for the library.
+In both cases, if the library was not found or could not be loaded, it will raise an exception.
+For example, an alternative definition for unix systems could have looked for the libc specifically in the ==/usr/lib/== directory.
+
+[[[
+MyLibC >> unixModuleName [
+	^ '/usr/bin/libc.so.6'
+]
+]]]
+
+
+Moreover, we are not constrained to simply return a string with a path.
+Having a method allows us to define complex lookup rules, potentially looking up libraries dynamically.
+To take a real example, let's consider how the cairo graphics library is defined for unix systems.
+Although they are mostly compatible, Unix systems present from time to time different directory structures, specially to avoid mixing 32bit and 64bit libraries.
+In the example below, the library lookup method for unix checks for the existens of the library in ==/usr/lib/i386-linux-gnu==, ==/usr/lib32== and ==/usr/lib==, and if found, it returns the absolute path to that file.
+
+[[[language=smalltalk
+CairoLibrary >> unixModuleName [
+		"On different flavors of linux the path to library may differ
+		depending on OS distro or whether system is 32 or 64 bit."
+
+		#(
+			'/usr/lib/i386-linux-gnu/libcairo.so.2'
+			'/usr/lib32/libcairo.so.2'
+			'/usr/lib/libcairo.so.2')
+		do: [ :path |
+			path asFileReference exists ifTrue: [ ^ path ] ].
+
+		self error: 'Cannot locate cairo library. Please check if it installed on your system'
+]
+]]]
+
+!!! Sharing Libraries Between Bindings
+
+To finish this chapter, let's define a new binding to another function in the same library: ==time==.
+The ==time== function receives a potentially null pointer and returns the current calendar time, which we will assume an ==uint== again for the time being for simplicity.
+We can then specify our new binding as follows by providing a ==NULL== pointer as default argument.
+We leave for the reader to lookup the definition of the function and the usefulness of the argument.
+
+[[[language=smalltalk
+FFITutorial class >> time [
+	^ self ffiCall: #( uint time (NULL) ) module: MyLibC
+]
+]]]
+
+This new binding uses the ==MyLibC== library we defined before, which introduces again some repeated code between our bindings.
+To avoid repeating this information, we can extract it in a single method in our ==FFITutorial== class to be used by the two bindings.
+This solution avoids making mistakes when defining libraries, though it is still not as neat as we would like.
+
+[[[language=smalltalk
+FFITutorial class >> myLibrary [
+  ^ MyLibC
+]
+
+FFITutorial class >> ticksSinceStart [
+	^ self ffiCall: #( uint clock () ) module: self myLibrary
+]
+
+FFITutorial class >> time [
+	^ self ffiCall: #( uint time (NULL) ) module: self myLibrary
+]
+]]]
+
+Further refactoring could clean this up, but fortunately to us, uFFI already provides support for sharing library definitions between bindings.
+Any class defining a binding can also define a default library by redefining the ==ffiModuleName== method.
+Then, we can omit at all the library definition in the callout binding.
+The library will be automatically be looked up by uFFI in the default definition.
+
+[[[language=smalltalk
+FFITutorial class >> ffiModuleName [
+  ^ MyLibC
+]
+
+FFITutorial class >> ticksSinceStart [
+	^ self ffiCall: #( uint clock () )
+]
+
+FFITutorial class >> time [
+	^ self ffiCall: #( uint time (NULL) )
+]
+]]]
+
+Of course, bindings defining a library explicitly override this mechanism, so you can create a class that has bindings mixing both mechanisms at your convenience.
+
+!!! Conclusion
+
+In this chapter we have seen the basics of FFI callouts.
+We declare a FFI binding to a function specifying the name of the function, its return type and the library this function belongs to.
+uFFI uses this information to load the library in memory, lookup the function, call it, and marshall any C values to Pharo values and vice-versa.
+
+[[[language=smalltalk
+FFITutorial class >> ticksSinceStart [
+	^ self ffiCall: #( uint clock () )
+]
+]]]
+
+Since different platforms work differently, uFFI provides extensions to define a library as an object.
+Library objects define per-platform strategies to lookup a library.
+By specifying relative paths we let uFFI search for the library in well-known platform locations, while absolute paths override such behaviour.
+Also, this mechanism allows binding developers to dynamically lookup a library in different places.
+
+The next chapter covers function arguments in different flavours.
+Although we ignored its details on purpose, the ==time== binding described in the previous version has a literal ==NULL== pointer argument.
+We will see how literal arguments, which may be of different flavours, are very a convenient syntax sugar for setting default argument values.
+They are not, however, the only means of sending data from Pharo to the C world, as we can also send Pharo objects.
+Of course, precious care has to be taken when sending objects to the C world, so we will revisit marshalling more in detail.

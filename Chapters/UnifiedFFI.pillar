@@ -1,0 +1,12 @@
+!! Unified FFI
+A Foreign Function Interface (FFI) allows a program written in one language to use resources written in another langauge. 
+In this case, it allows us to access functions/procedures and data structures written in C.
+
+In this document you will learn about the new FFI framework named Unified FFI, or uFFI for short.
+
+We will show how to invoke functions written in C, access C structs, define callbacks and handle other frequent situations 
+that you face when you want to interact with an external library. uFFI has been developed by E. Lorenzano.
+
+
+
+

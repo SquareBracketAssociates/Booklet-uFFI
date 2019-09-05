@@ -1,0 +1,214 @@
+!! Marshalling and Function Arguments
+
+In the last chapter we have seen the basics of FFI callouts to define a FFI binding to a function.
+This first example introduced the ideas of function lookup, library and marshalling of return values.
+However, the idea of marshalling is not specific to the transformation of return values from C to Pharo: it also involves the transformation of Pharo values to C, and the sharing of values between them.
+
+This chapter presents marshalling more in detail, using function arguments as our main case study.
+Our first examples show uFFI's capability of using literals as default argument values.
+We then advance into other basic data types such as Strings and ByteArrays, and finally to C pointers and how to manipulate them from Pharo.
+This chapter finishes by presenting the different marshalling rules in uFFI for basic types and particularly how to manage platform-specific types.
+
+!!! Passing arguments to a function
+
+The previous ==clock== example was the one of the simplest examples possible.
+It executes a function without parameters and we
+got the result. Now let's look how we can call functions that take arguments.
+
+!!! Passing a method parameter
+
+Let's start with a really simple function: ==abs()==, which takes an integer and returns its absolute value.
+
+""C header.""
+[[[
+int abs ( int n );
+]]]
+
+""Smalltalk binding.""
+[[[language=smalltalk
+FFICExamples class >> abs: anInteger [
+	^ self ffiCall: #( int abs (int anInteger) ) module: LibC
+]
+]]]
+
+Compared to the previous example, we changed the name of the function and added an argument.
+When functions have arguments you have to specify two things for each of them:
+# their type and the object that you want to be sent to the C function. That is, in the arguments array, we put the type of the argument (==int== in this example), and
+# the ''name of the Smalltalk variable'' we pass as argument.
+
+Here ==anInteger== in ==#(int abs (int anInteger)== means that the variable is bound to the ==abs:== method parameter
+and will be converted to a C int, when executing a call.
+
+This type-and-name pairs will be repeated, separated by comma for each argument, as we will show in the next examples.
+
+Now you can try printing this:
+
+[[[language=smalltalk
+FFICExamples abs: -42.
+]]]
+
+!!! About arguments
+
+In the callout code/binding declaration, we are expressing not one but ''two'' different aspects: the obvious one
+is the C function signature, the other one is the objects to pass as arguments to the C function when the method is
+invoked.
+In this second aspect there are many possibilities.
+In our example the argument of the C function is the method argument: ==anInteger==.
+But it is not always necessary the case.
+You can also use some constants, and in that case it's not always necessary to specify the type of the argument.
+This is because FFI-NB automatically uses them as C 'int's: ==nil== and ==false== are converted to 0, and ==true== to 1.
+Numbers are converted to their respective value, and can be positive and negative.
+
+!!! Passing literals
+
+Imagine that we want to have a wrapper that always calls the ==abs== function with the number -42.
+Then we directly define it as follows:
+
+[[[language=smalltalk
+FFICExamples class >> absMinusFortyTwo [
+	^ self ffiCall: #( int abs (-42) ) module: LibC
+]
+]]]
+
+Note that we omitted the type of the argument and directly write  ==int abs (-42)== instead of writing
+==int abs (int -42)== since by default arguments are automatically converted to C int.
+
+But, if the C function takes a float/double as argument for example, you must specify it in the signature:
+
+[[[language=smalltalk
+FFICExamples class >> floor: aFloat [
+	^ self ffiCall: #( double floor(double aFloat) ) module: LibC
+]
+]]]
+
+@@todo Luc Examples with more complex literals: arrays, ...
+
+!!! Passing variables
+
+Often some functions in C libraries take flags as arguments whose values are declared using #define in C headers.
+You can, of course take these constant values from header and put them into your callout.
+But it is preferable to use a symbolic names for constants, which is much less confusing than just bare numbers.
+To use a symbolic constant you can create an instance-variable, a class-variable or a variable in shared pool, and
+then use the variable name as an argument in your callout.
+
+For example, imagine that we always pass a constant value to our function that is stored in a class variable of our class:
+
+[[[language=smalltalk
+Object subclass: #FFICContantExamples
+	...
+	classVariables: 'TheAnswer'
+..
+]]]
+
+Then don't forget to initialize it properly:
+
+[[[language=smalltalk
+FFICContantExamples class >> initialize [
+	TheAnswer := -42.
+]
+]]]
+
+And finally, in the callout code, we can use it like following:
+
+[[[language=smalltalk
+FFICContantExamples class >> absMinusFortyTwo [
+	^ self ffiCall: #( int abs ( TheAnswer ) ) module: LibC
+]
+]]]
+
+You can also pass ==self== or any instance variable as arguments to a C call.
+Suppose you want to add the ==abs== function binding to the class ==SmallInteger== in a method named  ==absoluteValue==, so that we can execute ==-50 absoluteValue==.
+
+In that case we simply add the ==absoluteValue== method to ==SmallInteger==, and we directly pass ==self== as illustrated below.
+
+[[[language=smalltalk
+SmallInteger >> absoluteValue [
+	^ self ffiCall: #( int abs (int self) ) module: LibC
+]
+]]]
+
+It is is also possible to pass an instance variable, but we let you do it as an exercise :)
+
+!!! Passing strings
+
+As you may know strings in C are sequences of characters terminated with a special character: ==\\0==.
+It is then interesting to see how FFI-NB deals with them since they are an important data structure in C.
+For this, we will call the very well known ==strlen== function.
+This function requires a string as argument and returns its number of characters.
+
+""C header"".
+[[[
+int strlen ( const char * str );
+]]]
+
+""Smalltalk binding"".
+[[[language=smalltalk
+FFICExamples class >> stringLength: aString [
+	^ self ffiCall: #( int strlen (String aString) ) module: LibC
+]
+]]]
+
+
+
+!!! Example analysis
+
+You may have noticed that the callout description is not exactly the same as the C function header.
+
+In the signature ==#( int strlen (String aString) )== there are two differences with the C signature.
+- The first difference is the const keyword of the argument. For those not used to C, that's only a modifier keyword that the compiler takes into account to make some static validations at compile time. It has no value when describing the signature for calling a function at runtime.
+- The second difference, an important one, is the specification of the argument. It is declared as ==String aString== instead of ==char * aString==. With ==String aString==, FFI-NB will automatically do the arguments conversion from Smalltalk strings to C strings (null terminated). Therefore it is important to use String and not ==char *==. In the example, the string passed will be put in an external C ==char== array and a null termination character will be added to it. Also, this array will be automatically released after the call ends. This automatic memory management is very useful but we can also control it as we will see later. Using ==(String aString)== is equivalent to ==(someString copyWith: (Character value:0)== as in ==FFICExamples stringLength: (someString copyWith: (Character value:0)==. Conversely, FFI-NB will take the C result value of calling the C function and convert it to a proper Smalltalk Integer in this particular case.
+
+!!! Passing two strings
+
+We will now call the ==strcmp== function, which takes two strings as arguments and returns -1, 0 or 1 depending on
+the relationship between both strings.
+
+""C header""
+[[[
+	int strcmp ( const char * str1, const char * str2 );
+]]]
+
+""Smalltalk binding""
+[[[language=smalltalk
+FFICExamples class >> stringCompare: aString with: anotherString [
+	^ self ffiCall: #( int strcmp (String aString, String anotherString) ) module: LibC	
+]
+]]]
+
+Notice that you can add arguments by appending them to the arguments array, using a comma to separate them. Also
+notice that you have to explicitly tell which object is going to be sent for each argument, as already told. In this
+case, aString is the first one and anotherString is the second one.
+
+!!! Getting return value from a function
+
+Symmetrically to arguments, returned values are also marshalled, it means that C values are converted to Smalltalk objects.
+
+We already saw that implicitly through multiple examples since the beginning of the chapter.
+For example in the ==abs== example, the result is converted from an int to a SmallInteger.
+In the ==floor== example, the  result is converted from a double to a Float.
+
+But FFI-NB can also convert types a bit more complex than atomic types, like String
+
+[[[language=smalltalk
+FFICExamples >> #getEnv: aString [
+	^ self ffiCall: #( String getenv (String string) ) module: LibC
+]
+]]]
+
+There is a mapping defined for each atomic type. About a bit more complex objects (like external objects or structures),
+we will talk in following sections.
+
+!!! Returning "void *"
+
+Take this call as an example:
+
+[[[language=smalltalk
+FFICExamples class >> malloc: aNumber [
+	^ self ffiCall: #( void * malloc ( int aNumber ) )
+]
+]]]
+
+This is a special case of return: when there is a function who answers a ''void *''. In this case, since FFI-NB cannot know
+which kind of object it represents, it will answer an instance of ==ExternalData== (we will see this in next section).
+
+@@todo Luc illustrate that when NULL (a pointer with value 0) is returned, it is automatically converted to nil

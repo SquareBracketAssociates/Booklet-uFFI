@@ -1,0 +1,15 @@
+!!! How autoRelease works
+
+Sending #autoRelease message of an object registers object for finalisation with a particular executor.
+Then behaviour is divided:
+
+-A.1) for ExternalAddresses, it just registers in regular way, who will call ==finaliz==e on GC
+-A.2) finalize will just call a free assuming ExternalAddress was allocated (which is a malloc)
+
+- B.1) for all FFIExternalReference, it will register for finalisation what ==resourceData== answers (normally, the handle of the object)
+- B.2) finalisation process will call the object class >> finalizeResourceData: method, with the==resourceData== result as parameter
+- B.3) each kind of external reference can decide how to free that data (by default is also just freeing).
+
+An example of this is how AthensCairoSurface works.
+
+@@todo add an example
