@@ -37,7 +37,7 @@ FFI bindings are classes and methods that provide an object-oriented style to ac
 
 To write our first binding, let's start by defining a new class, ==FFITutorial==.
 This class will act as a module and encapsulate not only the functions we want to call but also any state we would like to persist.
-To access the ==clock== function, we then define a method in our ==FFITutorial== class using the ==ffiCall:module:== message to specify the declaration of the C function and indicate where it is defined. We will technically refer to this binding as a ''callout'', since it ''calls'' a function in the ''outside'' world (the C world).
+To access the ==clock== function, we then define a method in our ==FFITutorial== class using the ==ffiCall:module:== message to specify the declaration of the C function and indicate where it is defined. We will technically refer to this binding as a ''call-out'', since it ''calls'' a function in the ''outside'' world (the C world).
 
 If we are hosted on a Linux system, we define this class and method like so:
 
@@ -78,10 +78,10 @@ FFITutorial ticksSinceStart
 
 If everything works as expected, this expression will return the number of native clock ticks since our Pharo process was launched.
 
-!!! Analyzing the FFI callout
+!!! Analyzing the FFI Call-Out
 
-From the simple example we have run in the previous section, we can already learn several things.
-For starters, let us look at the binding definition again:
+The simple example we ran in the previous section illustrates several important uFFI concepts.
+For starters, let's look at the binding definition again:
 
 [[[language=smalltalk
 FFITutorial class >> ticksSinceStart [
@@ -89,27 +89,30 @@ FFITutorial class >> ticksSinceStart [
 ]
 ]]]
 
-This callout binding, a method, is named ==ticksSinceStart==, which is different to the function we are calling.
-Indeed, uFFI does not impose any restriction on how to call your methods, which may come in handy to decouple your programs from underlying C-level implementation details.
-Then, we use the method ==ffiCall:module:== defined by uFFI, that takes the target function declaration and a library name, and makes all the necessary work for the callout:
-- it looks-up the specified library in our system (==libc==, ==msvcrt==...)
-- it loads it in memory
-- it looks-up the ==clock== function in the library
-- it performs the call to the function
-- it transforms the return value (an ==uint==) into a Pharo integer
+This call-out binding, a Pharo method, is called ==ticksSinceStart== and happens to be named differently than the C function we are calling.
+Indeed, uFFI does not impose any restrictions as far as how to call your external functions.  This can come in handy for decoupling your methods from underlying C-level implementation details.
 
-Regarding function declarations, in our example the declaration is
+We invoke the C function using the Pharo method ==ffiCall:module:==, which is defined by uFFI.  We assemble the message arguments it needs by deconstructing the target C function declaration and referencing the name of the library in which it's defined.  uFFI takes the pieces and performs all the necessary work to make the call-out.  Continuing our example, we see that uFFI:
+- Locates the specified library (==libc==, ==msvcrt==, ...) in our host system,
+- Loads the C library into memory,
+- Indexes the ==clock== function in the library,
+- Transforms and pushes our Pharo arguments onto the stack,
+- Performs the call to the C function,
+- And finally transforms the return value (==uint== type) into a Pharo integer object.
+
+We said above that we need to "deconstruct" the C function declaration in order to create the first argument in our ==ffiCall:module:== message.  This argument is a Pharo Array of String, where each string element is a piece of the C declaration; we simply list the pieces in the same sequence as the C declaration.  The uFFI makes sense of it, and dynamically creates a C call with this information.
+
+This is best understood by example, so, to continue with our previous example, we render our C declaration in Pharo as:
 
 [[[
-#(uint clock ())
+#( uint clock () )
 ]]]
 
-specifying that the function name is ==clock==, it has no parameters, and its return type is of type ==unit==.
-Basically, if you strip down the outer ==#()==, what is inside is a C function prototype that is very close to normal C syntax.
-This is intentionally done so that in most cases you can actually copy-and-paste a raw C function declaration, taken from a header file or documentation, and it is ready for use.
-The second argument - in our example =='libc.so.6'== - is the name of the library that contains the function.
-The avid reader will notice that our binding is platform dependent, as it will in a single platform depending on the value chosen as librart.
-We will explore how to define bindings in a platform-independent way in the following section.
+The first element of our array is ==unit==, which is the function return ''type''.  This is followed by the function name, ==clock==.  Following the function name --and note the space!-- we embed another Pharo Array to list the formal arguments the C function expects, in order. In this case, ==clock== takes no arguments, so we must provide an empty Array.
+
+Another way to think of it is this: If we look past the outer ==#()== Pharo syntax, what we see inside is our C function prototype, appearing very similar to normal C syntax (but with spaces in unusual places).  uFFI was intentionally defined this way so that in most cases we can simply copy-paste a C function declaration taken from a header file or documentation, add some required spaces, wrap it in ==#()==, and it's ready for use.
+
+Our ==ffiCall:module:== message also takes a second argument (=='libc.so.6'== in our Linux example), which is the name of the library that contains the function.  In many cases we do not need to provide a full path to the file in our host system.  However, it should already be apparent that our bindings can be platform dependent, if the library we need is also platform-dependent.  We will explore how to define bindings in a platform-independent way in the following section.
 
 
 !!! Notes on Value Marshalling
@@ -130,7 +133,7 @@ Moreover, we will study how to define your own user-defined data types and type 
 
 !!! Libraries
 
-We saw before that a callout binding requires us to specify a module or library, which uFFI uses to look-up the given function.
+We saw before that a call-out binding requires us to specify a module or library, which uFFI uses to look-up the given function.
 In our previous example, we defined that the ==clock== function was inside the standard C library, i.e., ==libc.so.6== in a unix system.
 However, this solution was not portable enough: if we want to load and run this code in a different platform, we needed to change the library name to match our local system.
 Library will not necessarily have the same name, or be located in the same place, on all platforms.
@@ -266,7 +269,7 @@ FFITutorial class >> time [
 
 Further refactoring could clean this up, but fortunately to us, uFFI already provides support for sharing library definitions between bindings.
 Any class defining a binding can also define a default library by redefining the ==ffiModuleName== method.
-Then, we can omit at all the library definition in the callout binding.
+Then, we can omit at all the library definition in the call-out binding.
 The library will be automatically be looked up by uFFI in the default definition.
 
 [[[language=smalltalk
@@ -287,7 +290,7 @@ Of course, bindings defining a library explicitly override this mechanism, so yo
 
 !!! Conclusion
 
-In this chapter we have seen the basics of FFI callouts.
+In this chapter we have seen the basics of FFI call-outs.
 We declare a FFI binding to a function specifying the name of the function, its return type and the library this function belongs to.
 uFFI uses this information to load the library in memory, lookup the function, call it, and marshall any C values to Pharo values and vice-versa.
 
