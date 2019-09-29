@@ -117,19 +117,18 @@ Our ==ffiCall:module:== message also takes a second argument (=='libc.so.6'== in
 
 !!! Notes on Value Marshalling
 
-To fully understand the previous example, the last thing we need to explain is how the returned ==uint== value gets transformed into a Pharo ==SmallInteger==.
-This conversion of values between different languages is called ''marshalling'', and is in most cases managed automatically by uFFI.
-Indeed, uFFI internally maps standard C values to Smalltalk objects, for example:
-- types ==int==, ==uint==, ==long==, ==ulong== are mapped to Pharo integers (small or long integers depending on the size of the platform).
-- types ==float== and ==double== are mapped to Pharo floats.
+To fully understand the previous example, we still need to explain how the C ==uint== return value (a non-object; a cluster of bytes popped off the stack) gets transformed into a Pharo ==SmallInteger== ''object''.  Remember, C does not understand objects and does not do us the favor of returning values as attributes embedded within an object; we must somehow create an appropriate type of Pharo object, then migrate the C return value to become ''its'' value.  Our code then receives this Pharo object.
 
-Value marshalling is crucial for a correct behaviour of the bindings, particularly because the C world is closely-tied to the underlying machine.
-Indeed, C values are bits and bytes in registers and memory, and can be interpreted in many different ways by the Pharo runtime.
-For example, the C integer value 0x00000000 can be the interpreterd as the small integer 0, as the ''false'' object or as a null pointer depending on the marshalling rules.
-This means that the binding developer needs to correctly describe the types of their bindings so uFFI correctly interprets and transforms those values.
+This process of converting values between different internal representations is called ''marshalling'', and is, in most cases, managed automatically in Pharo by uFFI.  For example, uFFI internally maps these standard C values to Smalltalk objects:
+- Types ==int==, ==uint==, ==long==, ==ulong== are mapped to Pharo integers (small or long integers, depending on the platform architecture).
+- Types ==float== and ==double== are mapped to Pharo floats.
 
-In following chapters we will explore the marshalling rules more in detail and how they apply not only for return values but also for arguments.
-Moreover, we will study how to define your own user-defined data types and type mappings, to customize the marshalling for your special needs.
+Correct marshalling (and ''demarshalling'') of values is therefore crucial for correct behavior of the bindings, particularly because the C language is so closely tied to underlying machine architecture. And yet, C values are merely "naked" bits and bytes in registers and memory; they therefore have no inherent context or meaning.  Consequently, they can be interpreted in many different ways, including by the Pharo runtime engine.  The correct interpretation, involving such issues as byte ordering, type size, alignment requirements, string length/termination, etc. must be knowable, known, and properly handled.  An object can tell you what it is, but a string of bits is just a string of bits...
+
+As an example, consider the C integer value 0x00000000 (four contiguous '0x00' bytes).  This can be interpreted as the small integer 0, as the ''false'' object, or as a null pointer -- all depending on the marshalling rule selected for the inferred type.  This means that the developer coding the binding method needs to ''carefully'' and ''correctly'' describe the types of argument bindings so uFFI will then correctly interpret and transform those values.  This is programming at the ABI level (binary representations), so precision counts!  You are working side-by-side with the compiler, and inattention to detail can lead to crashes (or strange behavior that can be difficult to diagnose).
+
+In the following chapters we will explore the marshalling rules more in detail and see how they apply not only for return values but also for arguments.
+Moreover, we will learn how to define our own user-defined data types and type mappings, allowing us to customize and fine-tune the marshalling rules to fit our particular needs.
 
 !!! Libraries
 
