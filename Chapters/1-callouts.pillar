@@ -1,4 +1,4 @@
-!! Foreign Function Interface and Call-outs
+!! Foreign Function Interface and Call-Outs
 
 A Foreign Function Interface (FFI) is a programming language mechanism that allows software written in one language to use resources (functions and data structures) that were written in and compiled with a different language.  These "foreign" resources typically take the form of shared libraries, such as DLL files in Windows (or '.so' files in Linux and Mac) and can include run-time services made available by your operating system.  A good example is a driver provided by a vendor of a computer peripheral, such as a printer or a network card.
 
@@ -6,36 +6,40 @@ Code sharing and reuse via an FFI is fundamentally different from source code "i
 
 However, if the compiled resources we wish to link to were built with a different language (or even a different compiler of the same language), the bits and bytes may not line up properly when we push arguments, make calls, and retrieve results, due to the different standards that the other code's compiler followed when the borrowed code was produced.  In this case, more detailed bookkeeping must be followed by our language to make ABI translations and ensure that differences in issues such as data alignment, byte ordering, calling conventions, garbage collection, pointer references, and so forth are accounted for.  Without this, we risk not only getting incorrect results -- we could crash our process (or even the operating system).
 
-Although in theory, FFI interfaces can be defined to link any pair of differing languages, most languages are designed to interact with libraries written in the C language.  This is because C has a long heritage and widespread use, and (importantly) C has a predictable, standardized way to compile functions and structures.  So for Pharo to also choose C as an FFI target we gain two major advantages: first, by basing ourselves on such "standard" formats, we can build tools that simplify interoperability with an extensive array of existing C libraries.  Second, since nearly every other language is doing the same, we can simply join those mutual C-standard ABIs together to form a bridge between different systems -- allowing us to program at the source level of a C API.
+Although in theory FFI interfaces can be defined to link any pair of differing languages, most languages are designed to interact with libraries written in the C language.  This is because C has a long heritage and widespread use, and (importantly) C has a predictable, standardized way to compile functions and structures.  So with Pharo also choosing C as an FFI target we gain two major advantages: first, by basing ourselves on such "standard" formats, we can build tools that simplify interoperability with an extensive array of existing C libraries.  Second, since nearly every other language is doing the same, we can simply join those mutual C-standard ABIs together to form a bridge between different systems -- allowing us to program at the source level of a C API.
 
 This booklet shows one such FFI definition for Pharo: the Unified FFI framework, or uFFI for short.
 
-The Pharo uFFI is an API framework that eases communication between Pharo code and code that follows a C-style interface, making it possible to easily interact with external C libraries.  Given that calling functions is the ultimate objective of someone using an FFI, you will see that uFFI also helps with several other concerns, such as finding C function interfaces, transforming data between the Pharo world and the C world, accessing C structures, defining C-to-Pharo callbacks, and others.
+The Pharo uFFI is an API framework that eases communication between Pharo code and code that follows a C-style interface, making it possible to easily interact with external C libraries.  Given that 'calling functions' is the ultimate objective of someone using an FFI, you will see that uFFI also helps with several other concerns, such as finding C function interfaces, transforming data between the Pharo world and the C world, accessing C structures, defining C-to-Pharo callbacks, and others.
 
 Pharo uFFI has been developed by E. Lorenzano, and has received many contributions over the years from Pharo's open source community.
 
 !!! Calling a simple external function
+
 To illustrate the purpose and usage of uFFI, we will start with an example.
-Suppose that you want to know the amount of time the image has been running by calling the underlying OS function
-named ==clock==. This function is part of the standard C library (==libc==). Its C declaration is:
+Suppose we want to know the amount of time the image has been running by calling the underlying OS function
+named ==clock==. This function is part of the standard C library (==libc==). Its declaration in C is:
 
 [[[
-clock_t clock(void);
+clock_t clock( void );
 ]]]
 
-For the sake of simplicity, let's consider that ==clock=='s return type is an unsigned ==uint== instead of ==clock\_t==.
-We will discuss types, conversions and typedefs in subsequent sections.
-This would result in the following function signature:
+For the sake of simplicity, let's treat ==clock=='s return type as an unsigned ==uint== instead of ==clock\_t==.
+(We will discuss types, conversions, and typedefs in subsequent sections.)
+This results in the following C function declaration:
 
 [[[
-uint clock (void)
+uint clock( void )
 ]]]
 
-To call ==clock== using uFFI, we need to define a binding between a Pharo method and the ==clock== function.
-FFI bindings are classes and methods that provide an object-oriented style to access the C world, implementing all the glue required between the Pharo and the C world.
-To write our first binding, let's start by defining a new class ==FFITutorial==.
-This class will act as a module and encapsulate not only the functions we want to call but also any state we would like to store.
-To access the ==clock== function we then define a method in our ==FFITutorial== class using the ==ffiCall:module:== message to specify the signature of the C function and where it is defined. We will technically refer to this binding as a ''callout'', as it calls a function in the ''outside world'' (the C world).
+To call ==clock== from Pharo using uFFI, we need to define a binding between a Pharo method and the ==clock== function.
+FFI bindings are classes and methods that provide an object-oriented style to access the C world, implementing all the glue required between the Pharo world and the C world.
+
+To write our first binding, let's start by defining a new class, ==FFITutorial==.
+This class will act as a module and encapsulate not only the functions we want to call but also any state we would like to persist.
+To access the ==clock== function, we then define a method in our ==FFITutorial== class using the ==ffiCall:module:== message to specify the declaration of the C function and indicate where it is defined. We will technically refer to this binding as a ''callout'', since it ''calls'' a function in the ''outside'' world (the C world).
+
+If we are hosted on a Linux system, we define this class and method like so:
 
 [[[language=smalltalk
 Object subclass: #FFITutorial
@@ -48,7 +52,9 @@ FFITutorial class >> ticksSinceStart [
 ]
 ]]]
 
-The module argument above is an example for linux systems. For this code to run on other platforms you need to replace the =='libc.so.6'== string by e.g. =='libc.dylib'== for OSX or =='msvcrt.dll'== for windows. Following there are the equivalent definitions for OSX and Windows:
+where =='libc.so.6'== refers to the current version of the C shared library on our host system.  (We can find out which version we have by entering ==ls -1 /lib/*/libc.so*== in a Linux terminal window.)
+
+To define the same thing on other platforms, we need to replace the =='libc.so.6'== string by e.g., =='libc.dylib'== if we're running on OSX, or =='msvcrt.dll'== if we use Windows. The equivalent definitions for OSX and Windows are then:
 
 [[[language=smalltalk
 FFITutorial class >> ticksSinceStart [
@@ -56,19 +62,21 @@ FFITutorial class >> ticksSinceStart [
 ]
 ]]]
 
+and
+
 [[[language=smalltalk
 FFITutorial class >> ticksSinceStart [
   ^ self ffiCall: #( uint clock () ) module: 'msvcrt.dll'
 ]
 ]]]
 
-Finally, you can use your freshly created bindings in a playground by inspecting or printing the following expression:
+Finally, we can use our freshly-created bindings in a Pharo playground by inspecting or printing the following expression:
 
 [[[language=smalltalk
 FFITutorial ticksSinceStart
 ]]]
 
-If everything went ok, this expression will return the number of native clock ticks since the Pharo process started.
+If everything works as expected, this expression will return the number of native clock ticks since our Pharo process was launched.
 
 !!! Analyzing the FFI callout
 
@@ -83,14 +91,14 @@ FFITutorial class >> ticksSinceStart [
 
 This callout binding, a method, is named ==ticksSinceStart==, which is different to the function we are calling.
 Indeed, uFFI does not impose any restriction on how to call your methods, which may come in handy to decouple your programs from underlying C-level implementation details.
-Then, we use the method ==ffiCall:module:== defined by uFFI, that takes the target function signature and a library name, and makes all the necessary work for the callout:
+Then, we use the method ==ffiCall:module:== defined by uFFI, that takes the target function declaration and a library name, and makes all the necessary work for the callout:
 - it looks-up the specified library in our system (==libc==, ==msvcrt==...)
 - it loads it in memory
 - it looks-up the ==clock== function in the library
 - it performs the call to the function
 - it transforms the return value (an ==uint==) into a Pharo integer
 
-Regarding function signatures, in our example the signature is
+Regarding function declarations, in our example the declaration is
 
 [[[
 #(uint clock ())
