@@ -25,7 +25,7 @@ clock_t clock( void );
 ]]]
 
 For the sake of simplicity, let's treat ==clock=='s return type as an unsigned ==uint== instead of ==clock\_t==.
-(We will discuss types, conversions, and typedefs in subsequent sections.)
+(We will discuss types, conversions, and typedefs in subsequent chapters.)
 This results in the following C function declaration:
 
 [[[
@@ -33,7 +33,7 @@ uint clock( void )
 ]]]
 
 To call ==clock== from Pharo using uFFI, we need to define a binding between a Pharo method and the ==clock== function.
-FFI bindings are classes and methods that provide an object-oriented style to access the C world, implementing all the glue required between the Pharo world and the C world.
+FFI bindings are classes and methods that provide an object-oriented means of accessing C libraries, implementing all the glue required to join the Pharo world and the C world.
 
 To write our first binding, let's start by defining a new class, ==FFITutorial==.
 This class will act as a module and encapsulate not only the functions we want to call but also any state we would like to persist.
@@ -123,7 +123,7 @@ This process of converting values between different internal representations is 
 - Types ==int==, ==uint==, ==long==, ==ulong== are mapped to Pharo integers (small or long integers, depending on the platform architecture).
 - Types ==float== and ==double== are mapped to Pharo floats.
 
-Correct marshalling (and ''demarshalling'') of values is therefore crucial for correct behavior of the bindings, particularly because the C language is so closely tied to underlying machine architecture. And yet, C values are merely "naked" bits and bytes in registers and memory; they therefore have no inherent context or meaning.  Consequently, they can be interpreted in many different ways, including by the Pharo runtime engine.  The correct interpretation, involving such issues as byte ordering, type size, alignment requirements, string length/termination, etc. must be knowable, known, and properly handled.  An object can tell you what it is, but a string of bits is just a string of bits...
+Correct marshalling (and ''demarshalling'') of values is therefore crucial for correct behavior of the bindings, particularly because the C language is so closely tied to underlying machine architecture. And yet, C values are merely "naked" bits and bytes in registers and memory; they therefore have no inherent context or meaning.  Consequently, they can be interpreted in many different ways, including by the Pharo run-time engine.  The correct interpretation, involving such issues as byte ordering, type size, alignment requirements, string length/termination, etc. must be knowable, known, and properly handled.  An object can tell you what it is, but a string of bits is just a string of bits...
 
 As an example, consider the C integer value 0x00000000 (four contiguous '0x00' bytes).  This can be interpreted as the small integer 0, as the ''false'' object, or as a null pointer -- all depending on the marshalling rule selected for the inferred type.  This means that the developer coding the binding method needs to ''carefully'' and ''correctly'' describe the types of argument bindings so uFFI will then correctly interpret and transform those values.  This is programming at the ABI level (binary representations), so precision counts!  You are working side-by-side with the compiler, and inattention to detail can lead to crashes (or strange behavior that can be difficult to diagnose).
 
@@ -200,7 +200,7 @@ FFITutorial class >> ticksSinceStart [
 
 !!! Library Searching
 
-The ==macModuleName==, ==unixModuleName== and ==win32ModuleName== methods allow us, as developers, to employ different strategies to search for libraries and functions, depending on our host platform. If these methods return a relative path, library searching starts in common/default library directories on the system, or adjacent to the virtual machine executable. If they return an absolute path, default system locations will not be searched, only the specified path. In either case, if the library is not found or cannot be loaded, an exception is raised.
+The ==macModuleName==, ==unixModuleName==, and ==win32ModuleName== methods allow us, as developers, to employ different strategies to search for libraries and functions, depending on our host platform. If these methods return a relative path, library searching starts in common/default library directories on the system, or adjacent to the virtual machine executable. If they return an absolute path, default system locations will not be searched, only the specified path. In either case, if the library is not found or cannot be loaded, an exception is raised.
 
 For example, an alternative override definition for ==unixModuleName== can limit the search for 'libc' to load only from the ==/usr/lib/== directory on the host:
 
@@ -285,7 +285,7 @@ Of course, bindings defining a library explicitly will necessarily override this
 
 !!! Conclusion
 
-In this chapter we have seen the basics of writing our own uFFI call-outs. We declare an FFI binding to a C function by specifying the name of the function, its return type, its arguments, and the library the function belongs to. uFFI uses this information to load the library in memory, look up the function, unmarshall our Pharo arguments to C types and push them, call the function, and marshall any C return values back into Pharo objects.
+In this chapter we have seen the basics of writing our own uFFI call-outs. We declare an FFI binding to a C function by specifying the name of the function, its return type, its arguments, and the library the function belongs to. uFFI uses this information to load the library in memory, look up the function, demarshall our Pharo arguments to C types and push them, call the function, and marshall any C return values back into Pharo objects.
 
 [[[language=smalltalk
 FFITutorial class >> ticksSinceStart [
