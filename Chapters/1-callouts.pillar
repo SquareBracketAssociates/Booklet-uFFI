@@ -198,7 +198,7 @@ FFITutorial class >> ticksSinceStart [
 
 ''This'' version will run on all three platform types, ''and'' do so without us having to repeat the same code three times.
 
-!!! Library Searches
+!!! Library Searching
 
 The ==macModuleName==, ==unixModuleName== and ==win32ModuleName== methods allow us, as developers, to employ different strategies to search for libraries and functions, depending on our host platform. If these methods return a relative path, library searching starts in common/default library directories on the system, or adjacent to the virtual machine executable. If they return an absolute path, default system locations will not be searched, only the specified path. In either case, if the library is not found or cannot be loaded, an exception is raised.
 
@@ -234,19 +234,18 @@ CairoLibrary >> unixModuleName [
 !!! Sharing Libraries Between Bindings
 
 To finish this chapter, let's define a new binding to another function in the same library: ==time==.
-The ==time== function receives a potentially null pointer and returns the current calendar time, which we will assume an ==uint== again for the time being for simplicity.
-We can then specify our new binding as follows by providing a ==NULL== pointer as default argument.
-We leave for the reader to lookup the definition of the function and the usefulness of the argument.
+The ==time== function receives a (potentially null) C pointer and returns the current calendar time (as seconds of epoch), which we will once again assume is a ==uint== for simplicity.
+
+We can define our new binding as follows, providing a ==NULL== pointer as the function argument.
+(We leave it to the reader to look up the definition of the C function and determine the purpose of this argument.)
 
 [[[language=smalltalk
 FFITutorial class >> time [
-	^ self ffiCall: #( uint time (NULL) ) module: MyLibC
+	^ self ffiCall: #( uint time ( NULL ) ) module: MyLibC
 ]
 ]]]
 
-This new binding uses the ==MyLibC== library we defined before, which introduces again some repeated code between our bindings.
-To avoid repeating this information, we can extract it in a single method in our ==FFITutorial== class to be used by the two bindings.
-This solution avoids making mistakes when defining libraries, though it is still not as neat as we would like.
+Our new binding references the ==MyLibC== library we defined earlier, so the above structure couples that code to both our bindings. To avoid such undesirable coupling, we can choose to refactor the class reference into a single method in our ==FFITutorial== class that can be used instead in both bindings.  To continue our example,
 
 [[[language=smalltalk
 FFITutorial class >> myLibrary [
@@ -258,14 +257,15 @@ FFITutorial class >> ticksSinceStart [
 ]
 
 FFITutorial class >> time [
-	^ self ffiCall: #( uint time (NULL) ) module: self myLibrary
+	^ self ffiCall: #( uint time ( NULL ) ) module: self myLibrary
 ]
 ]]]
 
-Further refactoring could clean this up, but fortunately to us, uFFI already provides support for sharing library definitions between bindings.
-Any class defining a binding can also define a default library by redefining the ==ffiModuleName== method.
-Then, we can omit at all the library definition in the call-out binding.
-The library will be automatically be looked up by uFFI in the default definition.
+This strategy, however, is still not as neat as we would like it to be. Further refactoring could clean this up, but fortunately for us, uFFI already provides support for sharing library definitions between bindings.
+
+Any class defining a binding also has the option of defining a default library by overriding the ==ffiModuleName== method. Doing so allows us to omit a library definition altogether in our call-out bindings. The library will be automatically referenced by uFFI via the default method definition.
+
+Let's see how this further simplies things for us:
 
 [[[language=smalltalk
 FFITutorial class >> ffiModuleName [
@@ -277,17 +277,15 @@ FFITutorial class >> ticksSinceStart [
 ]
 
 FFITutorial class >> time [
-	^ self ffiCall: #( uint time (NULL) )
+	^ self ffiCall: #( uint time ( NULL ) )
 ]
 ]]]
 
-Of course, bindings defining a library explicitly override this mechanism, so you can create a class that has bindings mixing both mechanisms at your convenience.
+Of course, bindings defining a library explicitly will necessarily override this mechanism, so you still have the option of creating a class with bindings that mix both mechanisms in any manner you wish.
 
 !!! Conclusion
 
-In this chapter we have seen the basics of FFI call-outs.
-We declare a FFI binding to a function specifying the name of the function, its return type and the library this function belongs to.
-uFFI uses this information to load the library in memory, lookup the function, call it, and marshall any C values to Pharo values and vice-versa.
+In this chapter we have seen the basics of writing our own uFFI call-outs. We declare an FFI binding to a C function by specifying the name of the function, its return type, its arguments, and the library the function belongs to. uFFI uses this information to load the library in memory, look up the function, unmarshall our Pharo arguments to C types and push them, call the function, and marshall any C return values back into Pharo objects.
 
 [[[language=smalltalk
 FFITutorial class >> ticksSinceStart [
@@ -296,12 +294,9 @@ FFITutorial class >> ticksSinceStart [
 ]]]
 
 Since different platforms work differently, uFFI provides extensions to define a library as an object.
-Library objects define per-platform strategies to lookup a library.
-By specifying relative paths we let uFFI search for the library in well-known platform locations, while absolute paths override such behaviour.
-Also, this mechanism allows binding developers to dynamically lookup a library in different places.
+Library objects define per-platform strategies to search for C libraries in the host file system. By specifying relative paths we let uFFI search for the library in a platform's standard locations, while absolute paths override such behavior. In addition, this mechanism allows developers to write bindings that can dynamically search for their libraries in multiple locations.
 
-The next chapter covers function arguments in different flavours.
-Although we ignored its details on purpose, the ==time== binding described in the previous version has a literal ==NULL== pointer argument.
-We will see how literal arguments, which may be of different flavours, are very a convenient syntax sugar for setting default argument values.
-They are not, however, the only means of sending data from Pharo to the C world, as we can also send Pharo objects.
-Of course, precious care has to be taken when sending objects to the C world, so we will revisit marshalling more in detail.
+The next chapter covers function arguments of various types.  Although we glossed over its details on purpose, the ==time== binding described in the previous section has a literal ==NULL== pointer argument.
+We will see how literal arguments, which may be of different flavors, are very convenient syntactic sugar for specifying default argument values.
+They are not, however, the only means of conveying data from Pharo to the C world, as we ''can'' also send Pharo objects.
+Of course, great care must be taken when sending objects into the C world, so we shall revisit marshalling in more detail next.
