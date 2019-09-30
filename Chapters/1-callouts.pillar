@@ -198,13 +198,11 @@ FFITutorial class >> ticksSinceStart [
 
 ''This'' version will run on all three platform types, ''and'' do so without us having to repeat the same code three times.
 
-!!! Library Lookup
+!!! Library Searches
 
-The ==macModuleName==, ==unixModuleName== and ==win32ModuleName== methods allow us developers to have different strategies to lookup for libraries and functions depending on the platform.
-If these methods return a relative path, the libraries will be looked-up in common library directories in the system or close to the virtual machine executable.
-If they return an absolute path, the default system locations are overriden and only the specified path will be checked for the library.
-In both cases, if the library was not found or could not be loaded, it will raise an exception.
-For example, an alternative definition for unix systems could have looked for the libc specifically in the ==/usr/lib/== directory.
+The ==macModuleName==, ==unixModuleName== and ==win32ModuleName== methods allow us, as developers, to employ different strategies to search for libraries and functions, depending on our host platform. If these methods return a relative path, library searching starts in common/default library directories on the system, or adjacent to the virtual machine executable. If they return an absolute path, default system locations will not be searched, only the specified path. In either case, if the library is not found or cannot be loaded, an exception is raised.
+
+For example, an alternative override definition for ==unixModuleName== can limit the search for 'libc' to load only from the ==/usr/lib/== directory on the host:
 
 [[[
 MyLibC >> unixModuleName [
@@ -212,17 +210,15 @@ MyLibC >> unixModuleName [
 ]
 ]]]
 
+Moreover, we are not constrained to simply return a string containing a path. The use of a method allows us to define and follow complex search rules, potentially locating needed libraries dynamically.
 
-Moreover, we are not constrained to simply return a string with a path.
-Having a method allows us to define complex lookup rules, potentially looking up libraries dynamically.
-To take a real example, let's consider how the cairo graphics library is defined for unix systems.
-Although they are mostly compatible, Unix systems present from time to time different directory structures, specially to avoid mixing 32bit and 64bit libraries.
-In the example below, the library lookup method for unix checks for the existens of the library in ==/usr/lib/i386-linux-gnu==, ==/usr/lib32== and ==/usr/lib==, and if found, it returns the absolute path to that file.
+To take a real-world example, let's consider where the Cairo graphics library installs its resources on Unix-type systems. Although they are generally compatible, different '*nix' distros have evolved in ways that occasionally led to divergence in their file system structure, the placement of operating system files, and where they prefer to install packages the user may add.  This is especially true (for historical reasons) where structure was added to avoid mixing 32-bit and 64-bit libraries.  (Unix pre-dates the 8-bit micro-computer age.  It may be older than you are!)
+
+In the example below, the Cairo library search method for Unix checks for the existence of the library in ==/usr/lib/i386-linux-gnu==, ==/usr/lib32==, and ==/usr/lib==, and if found, returns the absolute path to that file.
 
 [[[language=smalltalk
 CairoLibrary >> unixModuleName [
-		"On different flavors of linux the path to library may differ
-		depending on OS distro or whether system is 32 or 64 bit."
+		"On different flavors of Linux, the path to the library may differ, depending on the distro and whether the system is 32- or 64-bit."
 
 		#(
 			'/usr/lib/i386-linux-gnu/libcairo.so.2'
@@ -231,7 +227,7 @@ CairoLibrary >> unixModuleName [
 		do: [ :path |
 			path asFileReference exists ifTrue: [ ^ path ] ].
 
-		self error: 'Cannot locate cairo library. Please check if it installed on your system'
+		self error: 'Cannot locate Cairo library. Please check if it is installed on your system.'
 ]
 ]]]
 
