@@ -6,7 +6,7 @@ Code sharing and reuse via an FFI is fundamentally different from source code "i
 
 However, if the compiled resources we wish to link to were built with a different language (or even a different compiler of the same language), the bits and bytes may not line up properly when we push arguments, make calls, and retrieve results, due to the different standards that the other code's compiler followed when the borrowed code was produced.  In this case, more detailed bookkeeping must be followed by our language to make ABI translations and ensure that differences in issues such as data alignment, byte ordering, calling conventions, garbage collection, pointer references, and so forth are accounted for.  Without this, we risk not only getting incorrect results \-\- we could crash our process (or even the operating system).
 
-Although in theory FFI interfaces can be defined to link any pair of differing languages, most languages are designed to interact with libraries written in the C language.  This is because C has a long heritage and widespread use, and (importantly) C has a predictable, standardized way to compile functions and structures.  So with Pharo also choosing C as an FFI target we gain two major advantages: first, by basing ourselves on such "standard" formats, we can build tools that simplify interoperability with an extensive array of existing C libraries.  Second, since nearly every other language is doing the same, we can simply join those mutual C-standard ABIs together to form a bridge between different systems \-\- allowing us to program at the source level of a C API.
+While in theory FFI interfaces can be defined to link any pair of differing languages, most languages are designed to interact with libraries written in the C language.  This is because C has a long heritage and widespread use, and (importantly) C has a predictable, standardized way to compile functions and structures.  So with Pharo also choosing C as an FFI target we gain two major advantages: first, by basing ourselves on such "standard" formats, we can build tools that simplify interoperability with an extensive array of existing C libraries.  Second, since nearly every other language is doing the same, we can simply join those mutual C-standard ABIs together to form a bridge between different systems \-\- allowing us to program at the source level of a C API.
 
 This booklet shows one such FFI definition for Pharo: the Unified FFI framework, or uFFI for short.
 
@@ -54,7 +54,7 @@ FFITutorial class >> ticksSinceStart [
 
 where =='libc.so.6'== refers to the current version of the C shared library on our host system.  (We can find out which version we have by entering ==ls -1 /lib/*/libc.so*== in a Linux terminal window.)
 
-To define the same thing on other platforms, we need to replace the =='libc.so.6'== string by e.g., =='libc.dylib'== if we're running on OSX, or =='msvcrt.dll'== if we use Windows. The equivalent definitions for OSX and Windows are then:
+To define the same binding for other platforms, we need to replace the =='libc.so.6'== string by e.g., =='libc.dylib'== if we're running on MacOS, or =='msvcrt.dll'== if we use Windows. The equivalent definitions for MacOS and Windows are then:
 
 [[[language=smalltalk
 FFITutorial class >> ticksSinceStart [
@@ -79,6 +79,7 @@ FFITutorial ticksSinceStart
 If everything works as expected, this expression will return the number of native clock ticks since our Pharo process was launched.
 
 !!! Analyzing the FFI Call-Out
+@OriginalTicksSinceStartBinding
 
 The simple example we ran in the previous section illustrates several important uFFI concepts.
 For starters, let's look at the binding definition again:
@@ -93,33 +94,33 @@ This call-out binding, a Pharo method, is called ==ticksSinceStart== and happens
 Indeed, uFFI does not impose any restrictions as far as how to call your external functions.  This can come in handy for decoupling your methods from underlying C-level implementation details.
 
 We invoke the C function using the Pharo method ==ffiCall:module:==, which is defined by uFFI.  We assemble the message arguments it needs by deconstructing the target C function declaration and referencing the name of the library in which it's defined.  uFFI takes the pieces and performs all the necessary work to make the call-out.  Continuing our example, we see that uFFI:
-- Locates the specified library (==libc==, ==msvcrt==, ...) in our host system,
-- Loads the C library into memory,
-- Indexes the ==clock== function in the library,
-- Transforms and pushes our Pharo arguments onto the stack,
+- Searches for the specified library in our host system,
+- On finding it, loads the C library into memory,
+- Indexes the specified function within the library,
+- Transforms and pushes our Pharo arguments (if any) onto the stack,
 - Performs the call to the C function,
-- And finally transforms the return value (==uint== type) into a Pharo integer object.
+- And finally transforms the return value into a Pharo object.
 
 We said above that we need to "deconstruct" the C function declaration in order to create the first argument in our ==ffiCall:module:== message.  This argument is a Pharo Array of String, where each string element is a piece of the C declaration; we simply list the pieces in the same sequence as the C declaration.  The uFFI makes sense of it, and dynamically creates a C call with this information.
 
-This is best understood by example, so, to continue with our previous example, we render our C declaration in Pharo as:
+This is best understood by example, so, to continue with our previous, we render our C declaration in Pharo as a literal string array, like so:
 
 [[[
 #( uint clock () )
 ]]]
 
-The first element of our array is ==unit==, which is the function return ''type''.  This is followed by the function name, ==clock==.  Following the function name \-\-and note the space!\-\- we embed another Pharo Array to list the formal arguments the C function expects, in order. In this case, ==clock== takes no arguments, so we must provide an empty Array.
+The first element of our array is ==uint==, which is the function return ''type''.  This is followed by the function name, ==clock==.  Following the function name \-\-and note the space!\-\- we embed another Pharo Array to list the formal arguments the C function expects, in order. In this case, ==clock== takes no arguments, so we must provide an empty Array.
 
 Another way to think of it is this: If we look past the outer ==#()== Pharo syntax, what we see inside is our C function prototype, appearing very similar to normal C syntax (but with spaces in unusual places).  uFFI was intentionally defined this way so that in most cases we can simply copy-paste a C function declaration taken from a header file or documentation, add some required spaces, wrap it in ==#()==, and it's ready for use.
 
-Our ==ffiCall:module:== message also takes a second argument (=='libc.so.6'== in our Linux example), which is the name of the library that contains the function.  In many cases we do not need to provide a full path to the file in our host system.  However, it should already be apparent that our bindings can be platform dependent, if the library we need is also platform-dependent.  We will explore how to define bindings in a platform-independent way in the following section.
+Our ==ffiCall:module:== message also takes a second argument (=='libc.so.6'== in our Linux example), which is the name of the library that contains the function.  In many cases we do not need to provide a full path to the file in our host system.  However, it should already be apparent that our bindings can be platform dependent, if the library we need is also platform-dependent.  We will explore how to define bindings in a platform-independent way in a following section.
 
 
 !!! Notes on Value Marshalling
 
 To fully understand the previous example, we still need to explain how the C ==uint== return value (a non-object; a cluster of bytes popped off the stack) gets transformed into a Pharo ==SmallInteger== ''object''.  Remember, C does not understand objects and does not do us the favor of returning values as attributes embedded within an object; we must somehow create an appropriate type of Pharo object, then migrate the C return value to become ''its'' value.  Our code then receives this Pharo object.
 
-This process of converting values between different internal representations is called ''marshalling'', and is, in most cases, managed automatically in Pharo by uFFI.  For example, uFFI internally maps these standard C values to Smalltalk objects:
+This process of converting values between different internal representations is called ''marshalling'', and in most cases is managed automatically in Pharo by uFFI.  For example, uFFI internally maps these standard C values to Smalltalk objects:
 - Types ==int==, ==uint==, ==long==, ==ulong== are mapped to Pharo integers (small or long integers, depending on the platform architecture).
 - Types ==float== and ==double== are mapped to Pharo floats.
 
@@ -188,7 +189,7 @@ MyLibC >> win32ModuleName [
 ]
 ]]]
 
-To use this improved technique, we modify our ''original'' binding method (in Section 1.2) to substitute our library in place of the library name string:
+To use this improved technique, we modify our ''original'' binding method (in *@OriginalTicksSinceStartBinding*) to substitute our library in place of the library name string:
 
 [[[language=smalltalk
 FFITutorial class >> ticksSinceStart [
@@ -288,8 +289,8 @@ Of course, bindings defining a library explicitly will necessarily override this
 In this chapter we have seen the basics of writing our own uFFI call-outs. We declare an FFI binding to a C function by specifying the name of the function, its return type, its arguments, and the library the function belongs to. uFFI uses this information to load the library in memory, look up the function, demarshall our Pharo arguments to C types and push them, call the function, and marshall any C return values back into Pharo objects.
 
 [[[language=smalltalk
-FFITutorial class >> ticksSinceStart [
-	^ self ffiCall: #( uint clock () )
+FFITutorial class >> time [
+	^ self ffiCall: #( uint time ( NULL ) )
 ]
 ]]]
 
