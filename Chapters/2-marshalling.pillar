@@ -1,42 +1,42 @@
 !! Marshalling and Function Arguments
 
-In the last chapter we have seen the basics of FFI callouts to define a FFI binding to a function.
-This first example introduced the ideas of function lookup, library and marshalling of return values.
-However, the idea of marshalling is not specific to the transformation of return values from C to Pharo: it also involves the transformation of Pharo values to C, and the sharing of values between them.
+In the last chapter we looked at the basics of FFI call\-outs to define a Pharo uFFI binding to a function.
+These first examples introduced the concepts of function lookup, library references, and marshalling of return values.
+However, the idea of marshalling is not specific to the transformation of return values from C to Pharo: it also involves the transformation of Pharo values to C, and the sharing of values between the two.
 
-This chapter presents marshalling more in detail, using function arguments as our main case study.
+This chapter presents marshalling in more detail, focusing on function arguments.
 Our first examples show uFFI's capability of using literals as default argument values.
-We then advance into other basic data types such as Strings and ByteArrays, and finally to C pointers and how to manipulate them from Pharo.
-This chapter finishes by presenting the different marshalling rules in uFFI for basic types and particularly how to manage platform-specific types.
+We then advance to other basic data types, from Strings and ByteArrays all the way to C pointers and how to manipulate them within Pharo.
+This chapter finishes by presenting the different marshalling rules in uFFI for basic types, particularly how to manage platform-specific types.
 
 !!! A First Function Argument
 
-The previous ==clock== example was the one of the simplest examples possible as it does not receive any arguments and we could easily tweak the binding to map the return value to an unsigned integer.
-To study function arguments let's consider the ==abs()== function, which receives an integer argument and returns its absolute value.
-The function prototype of ==abs()==, available in the standard C library as our previous examples, looks as follows:
+Our previous ==clock== example was the one of the simplest uFFI examples possible, as it does not require passing any arguments, and because we could easily tweak the binding to map the return value to an unsigned integer.
+To understand how to deal with function arguments, let's consider the ==abs()== function, which receives an integer argument and returns its absolute value.
+The function prototype of ==abs()==, available in the standard C library as in our previous examples, is declared as follows:
 
 [[[
-int abs ( int n );
+int abs( int n );
 ]]]
 
-To create a binding for such a function requires that we somehow provide an ==n== argument in our binding.
-To ease argument bindings, uFFI automatically matches the parameter names in our methods to the corresponding function parameters, if they have the same name.
+To create a binding for such a function requires that we somehow provide an ==int== argument in our binding.
+To ease the construction of argument bindings, uFFI will automatically match the parameter names in our calling method to any corresponding function parameters that have the same name.
 In other words, we can define our binding for ==abs()== as a method with a single ==n== argument as follows:
 
 [[[language=smalltalk
 FFITutorial class >> abs: n [
-	^ self ffiCall: #( int abs (int n) )
+	^ self ffiCall: #( int abs ( int n ) )
 ]
 ]]]
 
-Creating this binding does not really add any extra complexity to the ones done in previous examples.
-We create a simple method using the ==ffiCall:== message, and we provide as argument an array with a copy of the function's prototype.
-The only visible addition is the introduction of the ==n== parameter, but no manual work was required to transform Pharo's object to a C value.
-We can even rename that parameter using a more Pharoish style, let's say ==anInteger==.
+Creating this binding does not really add any extra complexity to what we did in our previous examples.
+We create a simple method that uses the ==ffiCall:== message, providing it an Array argument with a copy of the function's prototype.
+The only visible addition is the introduction of the ==n== parameter, but no additional work was needed to transform Pharo's object to a C value.
+We can even rename the parameter to use a more Pharo''ish'' naming style, such as ==anInteger==\:
 
 [[[language=smalltalk
 FFITutorial class >> abs: anInteger [
-	^ self ffiCall: #( int abs (int anInteger) )
+	^ self ffiCall: #( int abs ( int anInteger ) )
 ]
 ]]]
 
@@ -307,7 +307,7 @@ the relationship between both strings.
 ""Smalltalk binding""
 [[[language=smalltalk
 FFICExamples class >> stringCompare: aString with: anotherString [
-	^ self ffiCall: #( int strcmp (String aString, String anotherString) ) module: LibC	
+	^ self ffiCall: #( int strcmp (String aString, String anotherString) ) module: LibC
 ]
 ]]]
 
