@@ -2,18 +2,18 @@
 
 In the last chapter we looked at the basics of FFI call\-outs to define a Pharo uFFI binding to a function.
 These first examples introduced the concepts of function lookup, library references, and marshalling of return values.
-However, the idea of marshalling is not specific to the transformation of return values from C to Pharo: it also involves the transformation of Pharo values to C, and the sharing of values between the two.
+However, the idea of marshalling is not specific to the transformation of return values from C to Pharo: it also involves the transformation of Pharo values to C, and the sharing of values between the two environments.
 
 This chapter presents marshalling in more detail, focusing on function arguments.
 Our first examples show uFFI's capability of using literals as default argument values.
-We then advance to other basic data types, from Strings and ByteArrays all the way to C pointers and how to manipulate them within Pharo.
+We then advance to other basic data types, from ==String==s and ==ByteArray==s all the way to C pointers and how to manipulate them within Pharo.
 This chapter finishes by presenting the different marshalling rules in uFFI for basic types, particularly how to manage platform-specific types.
 
 !!! A First Function Argument
 
 Our previous ==clock== example was the one of the simplest uFFI examples possible, as it does not require passing any arguments, and because we could easily tweak the binding to map the return value to an unsigned integer.
-To understand how to deal with function arguments, let's consider the ==abs()== function, which receives an integer argument and returns its absolute value.
-The function prototype of ==abs()==, available in the standard C library as in our previous examples, is declared as follows:
+To understand how to deal with function arguments, let\'s consider the ==abs()== function, which receives an integer argument and returns its absolute value.
+The prototype of ==abs()==, another function available in the standard C library (allowing us to use our previous tutorial class), is declared as follows:
 
 [[[
 int abs( int n );
@@ -30,8 +30,10 @@ FFITutorial class >> abs: n [
 ]]]
 
 Creating this binding does not really add any extra complexity to what we did in our previous examples.
-We create a simple method that uses the ==ffiCall:== message, providing it an Array argument with a copy of the function's prototype.
-The only visible addition is the introduction of the ==n== parameter, but no additional work was needed to transform Pharo's object to a C value.
+We create a simple method that uses the ==ffiCall:== message, providing it an array argument enclosing a copy of the function's prototype.  (As with our earlier ==FFITutorial== class methods, we're assuming the continued use of our ==ffiModuleName== override to eliminate the need to add the ==module:== keyword).
+
+The part that's new here is the introduction of the ==n== parameter and its C type, but no additional work is needed on our part to transform Pharo's object to a C value.  Also, notice that uFFI knows to distinguish the argument's declared ''type'' from its formal parameter ''name'', while simultaneously matching up the name with our Pharo method's formal argument.
+
 We can even rename the parameter to use a more Pharo''ish'' naming style, such as ==anInteger==\:
 
 [[[language=smalltalk
@@ -40,7 +42,7 @@ FFITutorial class >> abs: anInteger [
 ]
 ]]]
 
-Finally, we can now use this binding from a playground as follows, with a regular Pharo SmallInteger.
+Finally, we can now use this binding from a playground as follows, with a regular Pharo ==SmallInteger==\:
 
 [[[language=smalltalk
 FFITutorial abs: -42.
@@ -48,104 +50,110 @@ FFITutorial abs: -42.
 
 !!! Marshalling
 
-Again, it was uFFI that managed value transformations for us.
-This transformation may look like uFFI simply copies the Pharo integer value to the C memory.
-However, these marshalling rules are not as straight forward, as Pharo and C use different data representations for each different data-type, and is potentially modified per platform.
+As we saw with return values in Chapter 1, Pharo's uFFI also manages the transformation of function arguments for us. The syntax we use may give the impression that uFFI simply copies the Pharo integer value to the C stack; however, the marshalling rules that uFFI must follow are not that straight-forward.  Pharo and C use different internal representations for their data types, each of which must be modified in order to be exchanged, and potentially in different ways, depending on the host platform.
 
-To illustrate how marshalling works, let's consider the marshalling of a SmallInteger to a C ==int== type as in the example.
-Internally, to differentiate integers from object pointers, Pharo represents SmallIntegers with an extra bit tagging the value.
-Let's consider the SmallInteger 2, represented in binary as the number 10, and is internally represented by Pharo as 101.
-This ''representation mismatch'' requires that uFFI transforms small integers to C ==int==s as follows:
-- a Pharo small integer transformed in a C value needs to be shifted to the right, ==101 >> 1==, transforming 101 to 10.
-- a C integer transformed in a Pharo small integer needs to be shifted to the left and added 1, ==(10 << 1) + 1==, transforming 10 to 101.
+To illustrate how marshalling works, let\'s consider the marshalling of a Pharo ==SmallInteger== to a C ==int== type, as in our example.
+Internally, for efficiency purposes, Pharo represents ==SmallInteger==s directly in binary, rather than as an object pointed to in the heap.  Therefore, to differentiate integers from object pointers, Pharo tags ==SmallInteger== \"pointers\" with an extra bit to signify this special interpretation.
+
+Let\'s consider the ==SmallInteger 2==; this value is represented in binary as the number ==2r10==, but is internally represented in Pharo as ==2r101==, where the ''least'' significant bit is shifted in as the added tag.  Since all Pharo object pointers are at least 32-bit aligned, we're guaranteed that their least significant bit will always be zero.  This makes a non-zero LSB a reliable indicator that we're dealing with a ==SmallInteger== rather than a heap pointer.  This is also why Pharo ==SmallInteger==s are 31 bits, ''not'' 32.
+
+This resulting ''representation mismatch'' requires that the uFFI transform small integers to C ==int==s (and vice\-versa) as follows:
+- a Pharo small integer transformed to a C value needs to be logically shifted to the right, ==2r101 >> 1==, transforming ==2r101== to ==2r10==.
+- a C integer (representable in 31 bits or less) transformed to a Pharo small integer needs to be shifted to the left and incremented, ==(2r10 << 1) + 1==, transforming ==2r10== to ==2r101==.
 
 !!!! Pharo-to-C Marshalling
 
-When marshalling Pharo objects to C, uFFI decides the rule of marshalling to use depending on two pieces of information.
-On the one hand, it uses the concrete type of the marshalled object ''its class''.
-On the other hand, it uses the type defined in the function binding as the target transformation type.
-At run time, when the binding method is executed, uFFI takes the type of the binding argument and transforms the argument object to the C representation of that type, doing a ''cast'' if necessary. This transformation rules has several consequences, that we will illustrate in several cases using our running ==abs== example:
+When marshalling Pharo objects to C, uFFI decides the transformation rule to use depending on two pieces of information.
+First, it considers the concrete type of the marshalled Pharo object, ''its class''.
+Second, it considers the C type defined in the function binding as the target transformation type.
+At run time, when the binding method is executed, uFFI reads the type of the binding argument and transforms the argument object to the indicated C type's representation, performing a type cast/coercion as necessary.
 
-- SmallIntegers are transformed to ==int==s as expected.
+These transformation rules have several consequences, which we will illustrate with several cases, using our previous ==abs== function example.
+
+- ==SmallInteger==s are transformed to ==int==s as expected (since they cannot overflow)\:
 
 [[[language=smalltalk
 FFITutorial abs: -42.
 => 42
 ]]]
 
-- Integers that overflow the ==int== size are casted/cut down, producing results similar to what a C program would produce.
+- Pharo integers that overflow the C ==int== size are coerced by truncating to size, producing results similar to what a C program would produce\:
 
 [[[language=smalltalk
-FFITutorial abs: SmallInteger maxVal.
+FFITutorial abs: SmallInteger maxVal.  "Cast to all 1\'s"
 => 1
 ]]]
 
-- Floats used for ==int==s will be automatically casted and only their integer part retained
+- Pharo floats provided for C ==int== arguments will be truncated to produce an integer\:
 
 [[[language=smalltalk
 FFITutorial abs: Float pi.
 => 3
 ]]]
 
-- Objects non compatible with the ==int== type are rejected and an exception is thrown
+- Pharo objects that are incompatible with C ==int== type are rejected, and an exception is thrown\:
 
 [[[language=smalltalk
 FFITutorial abs: Object new.
-=> exception!
+=> Error: Could not coerce arguments
 ]]]
 
 !!!! C-to-Pharo Marshalling
 
-A similar-yet-different story happens when marshalling C values to Pharo objects.
-In this case uFFI decides the rule of marshalling depending on just the specified return type.
-At run time, when the binding method is executed and the function returns, uFFI transforms the returned value to the closest Pharo type for the specified C type.
-For example, the ==int== type will interpret the returned data as SmallIntegers or Positive/Negative/LargeIntegers depending on their size and sign,
-the ==float== type will interpret the returned data as Float.
+A similar\-yet\-different story happens when marshalling C values to Pharo objects.
+In this case uFFI decides the marshalling rule based on just the specified return type.
+At run time, when the binding method is executed and the C function returns, uFFI transforms the (expected) return value into the closest Pharo type corresponding to the declared C type.
+
+For example, a delared ==int== return type will cause uFFI to interpret the returned value as either a ==SmallInteger== or ==Large(Positive\|Negative)Integer==, depending on the size and sign of the data; a C
+==float== or ==double== type will interpret the returned data as a Pharo ==Float==.
 
 !!!! Marshalling of Incorrectly Declared Types
 
-The marshalling rules we have seen above show that the way in which we specify function types is crucial to the correct behaviour of our bindings, and thus our applications.
-In other words, bindings require that types are correctly specified, runtime errors, or even worse, incorrect value transformation may happen.
-Let's consider as an example what happens if we modify the signature of the ==abs== function to use a ==float== as argument.
+The marshalling rules we have seen above show that the way in which we specify function types is ''crucial'' to the correct behavior of our bindings, and thus our applications.
+In other words, call\-out bindings require that C types are correctly specified, otherwise run\-time errors \-\- or even worse, viable but incorrect value transformations \-\- may happen.
+
+Let\'s consider as an example what happens if we create a companion ==abs== function to operate on a ==Float== argument instead of an integer, but which uses the same C ==abs== function\:
 
 [[[language=smalltalk
 FFITutorial class >> floatAbs: aFloat [
-	^ self ffiCall: #( int abs (float aFloat) )
+	^ self ffiCall: #( int abs ( float aFloat ) )
 ]
 ]]]
 
-And then we evaluate in a playground our binding with a negative float value:
+Now let\'s we evaluate this version in a playground using a negative ==Float== value:
 
 [[[language=smalltalk
 FFITutorial floatAbs: -1.0.
 => 0
 ]]]
 
-Although we expected the message to return 1 (because the return value is still of type ==int==), this example returns 0.
-To understand this result, we need to first understand that our bindings, and the way we expressed their types, are independent of the actual function implementation we are calling.
-In other words, even if we set the type of ==abs== to ==float==, the ==abs== function in our system was built and compiled to work on ==int== values.
-So what happens under the hoods in this example is that uFFI transforms our -1.0 Pharo float to a C float, and then uses that value as if it was an integer.
-And it happens that integers and floats have different representations in C.
-This produces both hillarious and dangerous results.
+Although we expected the message to return ==1== (because the return value is still of type ==int==), this example returns ==0==.
+To understand this result, we need to understand that our bindings, and the way we express their C types, are ''independent'' of the actual function implementation we are calling.
+In other words, even if we \'set\' the type of ==abs== to ==float==, the ==abs== function in our system remains built and compiled to work only on C ==int== values.  We're not ''compiling'' the C functions in Pharo, only attaching and calling them.  So we must strictly and carefully adhere to their documented function declarations.
+
+What happens \"under the hood\" in this example is that uFFI transforms our ==\-1.0== Pharo float into a C float, then pushes it on the stack and calls the ==abs== function.  The function uses that value, but considers it to be an integer.
+And it happens that integers and floats have the same bit size (32 bits), but vastly different representations in C.
+This produces either hilarious or ''dangerous'' results...
 
 A similar problem arises if the return type of a function is incorrectly specified.
-Let's take for example a slightly modified version of our ==abs== binding for float return types:
+Let\'s take for example a slightly modified version of our original ==abs== binding, this time declaring a C float return type\:
 
 [[[language=smalltalk
 FFITutorial class >> floatReturnAbs: anInteger [
-	^ self ffiCall: #( float abs (int anInteger) )
+	^ self ffiCall: #( float abs ( int anInteger ) )
 ]
 ]]]
 
-Whenever this function returns, it will interpret the returned value as a float.
-However, as the actual implementation of ==abs== returns an ==int==, the integer is just wrongly interpreted producing strange values.
+When this call returns, uFFI will interpret the returned value as a C float, and try to marshall it to a Pharo ==Float==\:
 
 [[[language=smalltalk
-FFITutorial floatReturnAbs: Float pi.
-=> 3.3702805504e12
+FFITutorial floatReturnAbs: -3.
+=> -1.07374176e8
 ]]]
 
-Although writing library bindings with uFFI is fun and simple, the binding developer needs to make sure that the types are correctly declared, and that the correct version of the library is used. Fortunately, for mature libraries most of the times it is enough to copy and paste the function declarations.
+However, since the implementation of ==abs== actually returns an ==int==, the bits are wrongly interpreted, producing not an error (in this case), but a strange value \-\- ''one that your application might not detect''.  And if this kind of misinterpretation is only \"slightly off\", it can lead to buggy behavior that is maddeningly difficult to diagnose.
+
+While writing library bindings with uFFI is fun and simple, the binding developer needs to make sure that the types are correctly declared, and that the correct version of the library is being used. Fortunately, for mature libraries, most of the time it is sufficient to simply copy and paste the function declarations.
 
 !!! Function Argument Bindings
 
@@ -159,7 +167,7 @@ For example, they may have extra parameters for optional options and configurati
 Although ''optional'', we cannot leave these parameters out of the binding, as they need to be there for the call to happen correctly.
 To cope with optional parameters, uFFI allows literal objects to be sent as function arguments.
 
-To illustrate this, let's first imagine that for some reason we need to call the ==abs== function with the -42 argument exclusively.
+To illustrate this, let\'s first imagine that for some reason we need to call the ==abs== function with the -42 argument exclusively.
 With the tools we have seen until now, a simple way to define such a binding would be to define a normal Pharo method calling our binding with the value -42.
 
 [[[language=smalltalk
