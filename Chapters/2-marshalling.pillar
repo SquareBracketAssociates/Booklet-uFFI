@@ -68,7 +68,7 @@ First, it considers the concrete type of the marshalled Pharo object, ''its clas
 Second, it considers the C type defined in the function binding as the target transformation type.
 At run time, when the binding method is executed, uFFI reads the type of the binding argument and transforms the argument object to the indicated C type's representation, performing a type cast/coercion as necessary.
 
-These transformation rules have several consequences, which we will illustrate with several cases, using our previous ==abs== function example.
+These transformation rules have several consequences, which we will illustrate with several cases, using our previous ==abs:== binding example.
 
 - ==SmallInteger==s are transformed to ==int==s as expected (since they cannot overflow)\:
 
@@ -112,7 +112,7 @@ For example, a delared ==int== return type will cause uFFI to interpret the retu
 The marshalling rules we have seen above show that the way in which we specify function types is ''crucial'' to the correct behavior of our bindings, and thus our applications.
 In other words, call\-out bindings require that C types are correctly specified, otherwise run\-time errors \-\- or even worse, viable but incorrect value transformations \-\- may happen.
 
-Let\'s consider as an example what happens if we create a companion ==abs== function to operate on a ==Float== argument instead of an integer, but which uses the same C ==abs== function\:
+Let\'s consider as an example what happens if we create a companion ==abs:== binding to operate on a ==Float== argument instead of an integer, but which uses the same C ==abs()== function\:
 
 [[[language=smalltalk
 FFITutorial class >> floatAbs: aFloat [
@@ -129,14 +129,14 @@ FFITutorial floatAbs: -1.0.
 
 Although we expected the message to return ==1== (because the return value is still of type ==int==), this example returns ==0==.
 To understand this result, we need to understand that our bindings, and the way we express their C types, are ''independent'' of the actual function implementation we are calling.
-In other words, even if we \'set\' the type of ==abs== to ==float==, the ==abs== function in our system remains built and compiled to work only on C ==int== values.  We're not ''compiling'' the C functions in Pharo, only attaching and calling them.  So we must strictly and carefully adhere to their documented function declarations.
+In other words, even if we \'set\' the type of ==abs()== to ==float==, the ==abs()== function in our system remains built and compiled to work only on C ==int== values.  We're not ''compiling'' the C functions in Pharo, only attaching and calling them.  So we must strictly and carefully adhere to their documented function declarations.
 
-What happens \"under the hood\" in this example is that uFFI transforms our ==\-1.0== Pharo float into a C float, then pushes it on the stack and calls the ==abs== function.  The function uses that value, but considers it to be an integer.
+What happens \"under the hood\" in this example is that uFFI transforms our ==\-1.0== Pharo float into a C float, then pushes it on the stack and calls the ==abs()== function.  The function uses that value, but considers it to be an integer.
 And it happens that integers and floats have the same bit size (32 bits), but vastly different representations in C.
 This produces either hilarious or ''dangerous'' results...
 
 A similar problem arises if the return type of a function is incorrectly specified.
-Let\'s take for example a slightly modified version of our original ==abs== binding, this time declaring a C float return type\:
+Let\'s take for example a slightly modified version of our original ==abs:== binding, this time declaring a C float return type\:
 
 [[[language=smalltalk
 FFITutorial class >> floatReturnAbs: anInteger [
@@ -151,24 +151,24 @@ FFITutorial floatReturnAbs: -3.
 => -1.07374176e8
 ]]]
 
-However, since the implementation of ==abs== actually returns an ==int==, the bits are wrongly interpreted, producing not an error (in this case), but a strange value \-\- ''one that your application might not detect''.  And if this kind of misinterpretation is only \"slightly off\", it can lead to buggy behavior that is maddeningly difficult to diagnose.
+However, since the implementation of ==abs()== actually returns an ==int==, the bits are wrongly interpreted, producing not an error (in this case), but a strange value \-\- ''one that your application might not detect''.  And if this kind of misinterpretation is only \"slightly off\", it can lead to buggy behavior that is maddeningly difficult to diagnose.
 
 While writing library bindings with uFFI is fun and simple, the binding developer needs to make sure that the types are correctly declared, and that the correct version of the library is being used. Fortunately, for mature libraries, most of the time it is sufficient to simply copy and paste the function declarations.
 
 !!! Function Argument Bindings
 
-We have seen in the introductory example before how to use method parameters as arguments in our function bindings.
-In this section we explore other ways to define arguments, in particular literal integers, instance and class variables.
+We have seen in the earlier introductory example how to use method parameters as arguments when writing function bindings.
+In this section we explore other ways to define arguments, in particular literal integers, instance variables, and class variables.
 
 !!!! Literal Integer Arguments
 
-From time to time we will find C functions presenting much more parameters than the ones we are interested in.
-For example, they may have extra parameters for optional options and configurations, or even parameters that are only necessary in particular cases and ignored in others.
-Although ''optional'', we cannot leave these parameters out of the binding, as they need to be there for the call to happen correctly.
-To cope with optional parameters, uFFI allows literal objects to be sent as function arguments.
+From time to time we will find ourselves calling C functions that require many more parameters than the ones we are actually interested in providing.
+For example, C functions may have extra parameters to select or control certain options and configurations, or they may have parameters that are only necessary in particular cases (and which are ignored in others).
 
-To illustrate this, let\'s first imagine that for some reason we need to call the ==abs== function with the -42 argument exclusively.
-With the tools we have seen until now, a simple way to define such a binding would be to define a normal Pharo method calling our binding with the value -42.
+Although parameters such as these are deemed ''optional'', we cannot leave them out of our binding definition \-\- they still need to be there for the C call to occur correctly. To make it easier to deal with such optional parameters, uFFI allows Pharo literal objects to be provided as function arguments.
+
+To see how this works, let\'s first imagine that for some reason we needed to call the ==abs()== function with the ==\-42== argument exclusively.
+Using what we have learned up to this point, a simple way to define such a binding would be to define a normal Pharo method calling our binding with the hard-coded value ==\-42==\:
 
 [[[language=smalltalk
 FFITutorial class >> absMinusFortyTwo [
@@ -176,55 +176,56 @@ FFITutorial class >> absMinusFortyTwo [
 ]
 ]]]
 
-This approach is convenient one when we want both ==abs:== and ==absMinusFortyTwo== to be exposed to the final user.
-Ultimately it benefits from the binding being declared only once, so we can isolate potential marshalling mistakes in a single place.
-However, we do not always want to expose the ==abs== function directly as in this case.
-To cover this feature, uFFI supports the usage of literal arguments in function bindings.
-Instead of using a method parameter as argument in the function binding, we can specify a literal value.
+This approach is convenient when we want both ==abs:== and ==absMinusFortyTwo== to be exposed to our user.
+It certainly benefits from the binding being declared only once, allowing us to isolate potential marshalling mistakes in a single location.
+However, we may not want to couple to the ==abs:== method directly, as we\'re doing in this case.  Instead, we want to provide ==\-42== directly to the C ==abs()== function, as a literal (canned-in) value.
+
+To provide for this, uFFI supports the usage of literal arguments in function bindings.  Instead of using a method parameter as argument in the function binding, we can specify a literal value with some additional new syntax\:
 
 [[[language=smalltalk
 FFITutorial class >> absMinusFortyTwo [
-	^ self ffiCall: #( int abs ( (int) -42) ) module: LibC
+	^ self ffiCall: #( int abs ( (int) -42 ) )
 ]
 ]]]
 
-Literal integers should be accompanied with a type annotation like the ==(int)== above.
-This type information is needed by uFFI to correctly decide how to transform the integer, as many different variants may happen.
-Consider that C integers can be signed or unsigned, and occupy different sizes like 8, 16, 32, 64 bits...
-We will present more in detail the different data types accepted by uFFI, in particular integer data types, in a following section in this chapter.
+Notice that we don't just type in a Pharo integer for the expected argument; literal values such as integers must be preceded by a C type declaration, such as the ==(int)== above, in parenthesis (to make it clear to the parser that it\'s a ''type specifier'').
+This type information is needed by uFFI to correctly determine how to transform the Pharo integer, given the many different forms in which it could be rendered.
+
+Consider that in the case of C integers, a number can be signed or unsigned, and can occupy different sizes such as 8, 16, 32, or 64 bits.  Pharo can't guess; the C function expects a specific type to be provided, and the Pharo object containing the value doesn't reflect this.  We have to explicitly \'type\' the literal when we type it in.
+
+We will present more detail about the different data types accepted by uFFI, in particular integer data types, in an upcoming section of this chapter.
 
 !!!! Variables
 
-In the methods above we used literal numbers as arguments in ffi callouts.
-Although handy, these literal numbers enter in the category of ''magic numbers''.
-In other words, these literal numbers that lie in the code do not explain where those numbers came from, how they were chosen or calculated.
-One way to avoid the spread of magic numbers in the code is to assign names to them, usually done with variables or constants.
+In the methods above we used literal numbers as arguments in uFFI call\-outs.
+Although handy, these literal numbers fall into the category of so\-called \"magic numbers\"\: Embedded literals in code that offer no explanation of where they came from, why they were chosen, or how they were calculated.  (These are distinguished from ''manifest constants'', which are more-or-less self-explanatory, such as using ''pi'' in angle calculations or \'2\' when we need half of a quantity.)
 
-C libraries often define such constants using #define pre-processor statements like.
+Embedding magic numbers in methods is a ''code smell'' and should be avoided.  One way to handle these kinds of values is to parameterize them\: assign them names, usually as a variable or named constant.  C libraries often define such constants using ==\#define== pre-processor statements such as\:
 
 [[[language=c
   #define magicNumber -42
 ]]]
 
-In Pharo, we take a similar approach by defining our value in a class variable.
-We change the definition of the ==FFITutorial== class to include a class variable ==TheAnswer==, and define a class-side ==initialize== method to initialize the value. Do not forget to execute this ==initialize== method so the value is actually set.
+In Pharo, we can take a similar approach by defining such values in class variables.
+We only need to change the definition of our ==FFITutorial== class to include a class variable such as ==TheAnswer== (which is consequently capitalized), and then define a class-side ==initialize== method to set its value (''and explain why''). Do ""not"" forget to execute this ==initialize== method, otherwise the value won\'t get set\!
 
 [[[language=smalltalk
 Object subclass: #FFITutorial
 	...
-	classVariables: 'TheAnswer'
+	classVariableNames: 'TheAnswer'
   ...
 
 FFITutorial class >> initialize [
+	"Set this to -42 because.. Life, the Universe, and Everything"
 	TheAnswer := -42.
 ]
 ]]]
 
-Finally, we proceed to redefine our callout binding to use our class variable.
+Finally, we update our call\-out binding to use our class variable \-\- and note that we still need to provide its type explicitly\:
 
 [[[language=smalltalk
 FFITutorial class >> absMinusFortyTwo [
-  ^ self ffiCall: #( int abs ( (int) TheAnswer) ) module: LibC
+  ^ self ffiCall: #( int abs ( (int) TheAnswer) )
 ]
 ]]]
 
