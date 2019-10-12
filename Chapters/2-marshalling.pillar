@@ -229,10 +229,11 @@ FFITutorial class >> absMinusFortyTwo [
 ]
 ]]]
 
-As with class-variables, uFFI integrates with variables defined in shared pools.
-Shared pools are useful to group common constants that need to be shared between different classes, bindings or even libraries.
+Just as with class variables, uFFI integrates transparently with variables defined in shared pools.
+Shared pools are useful for grouping common constants that need to be shared between different classes, bindings, or even libraries.
+
 The following code illustrates how we can modify our code to put our variable(s) in a shared pool.
-Notice that the only code that changes is the one defining the variable.
+Notice that the only code that changes is the class defining the variable.
 The binding using the variable remains unchanged.
 
 [[[language=smalltalk
@@ -242,6 +243,7 @@ SharedPool subclass: #FFITutorialPool
   ...
 
 FFITutorialPool class >> initialize [
+	"Set this to -42 because.. Life, the Universe, and Everything"
 	TheAnswer := -42.
 ]
 
@@ -251,26 +253,24 @@ Object subclass: #FFITutorial
   ...
 
 FFITutorial class >> absMinusFortyTwo [
-  ^ self ffiCall: #( int abs ( (int) TheAnswer) ) module: LibC
+  ^ self ffiCall: #( int abs ( (int) TheAnswer ) )
 ]
 ]]]
 
+Using a shared pool does not change the normal Pharo usage of uFFI. If you want to learn more about Pharo shared pools, we recommend you take a look at ''Pharo by Example 8.0''.
 
-Using a shared pool does not change from the normal Pharo usage. If you want to know shared pools more in detail, we recommend you take a look at Pharo by Example.
+We can also pass ==self== as an argument to a C call.
+Suppose we want to add the ==abs()== function call to an extention of the class ==SmallInteger==, in a method named  ==absoluteValue==.  This would allows us to write expressions such as ==\-50 absoluteValue==.
 
-
-You can also pass ==self== or any instance variable as arguments to a C call.
-Suppose you want to add the ==abs== function binding to the class ==SmallInteger== in a method named  ==absoluteValue==, so that we can execute ==-50 absoluteValue==.
-
-In that case we simply add the ==absoluteValue== method to ==SmallInteger==, and we directly pass ==self== as illustrated below.
+To do this, we simply add an ==absoluteValue== method to ==SmallInteger== and directly pass ==self== as a (typed) argument, like so\:
 
 [[[language=smalltalk
 SmallInteger >> absoluteValue [
-	^ self ffiCall: #( int abs (int self) ) module: LibC
+	^ self ffiCall: #( int abs ( int self ) ) module: LibC
 ]
 ]]]
 
-It is is also possible to pass an instance variable, but we let you do it as an exercise :)
+It is is also possible to pass instance variables, but we let you experiment with that as an exercise... \:\^)
 
 !!! uFFI Data Types
 
