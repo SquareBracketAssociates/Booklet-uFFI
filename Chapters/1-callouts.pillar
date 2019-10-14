@@ -21,7 +21,7 @@ Suppose we want to know the amount of time the image has been running by calling
 named ==clock==. This function is part of the standard C library (==libc==). Its declaration in C is\:
 
 [[[
-clock\_t clock( void )\;
+clock_t clock( void );
 ]]]
 
 For the sake of simplicity, let\'s treat ==clock==\'s return type as an unsigned, ==uint==, instead of ==clock\_t==.
@@ -29,7 +29,7 @@ For the sake of simplicity, let\'s treat ==clock==\'s return type as an unsigned
 This results in the following C function declaration\:
 
 [[[
-uint clock( void )\;
+uint clock( void );
 ]]]
 
 To call ==clock== from Pharo using uFFI, we need to define a binding between a Pharo method and the ==clock== function.
@@ -41,14 +41,14 @@ To access the ==clock== function, we then define a method in our ==FFITutorial==
 
 If our Pharo code is hosted on a Linux system, we define this class and (class\-side) method like so\:
 
-[[[language\=smalltalk
-Object subclass\: \#FFITutorial
-	instanceVariableNames\: \'\'
-	classVariableNames\: \'\'
-	package\: \'FFITutorial\'
+[[[language=smalltalk
+Object subclass: #FFITutorial
+	instanceVariableNames: ''
+	classVariableNames: ''
+	package: 'FFITutorial'
 
 FFITutorial class >> ticksSinceStart [
-  \^ self ffiCall\: \#( uint clock() ) module\: \'libc.so.6\'
+  ^ self ffiCall: #( uint clock() ) module: 'libc.so.6'
 ]
 ]]]
 
@@ -56,23 +56,23 @@ where we have simply copied the C declaration into a Pharo Array literal, then a
 
 To define the same binding for other host platforms, we need to replace the ==\'libc.so.6\'== string by e.g., ==\'libc.dylib\'== if we\'re running on MacOS, or ==\'msvcrt.dll\'== if we use Windows. The equivalent definitions for MacOS and Windows are then\:
 
-[[[language\=smalltalk
+[[[language=smalltalk
 FFITutorial class >> ticksSinceStart [
-  \^ self ffiCall\: \#( uint clock() ) module\: \'libc.dylib\'
+  ^ self ffiCall: #( uint clock() ) module: 'libc.dylib'
 ]
 ]]]
 
 and
 
-[[[language\=smalltalk
+[[[language=smalltalk
 FFITutorial class >> ticksSinceStart [
-  \^ self ffiCall\: \#( uint clock() ) module\: \'msvcrt.dll\'
+  ^ self ffiCall: #( uint clock() ) module: 'msvcrt.dll'
 ]
 ]]]
 
 Finally, we can use our freshly\-created binding in a Pharo playground by inspecting or printing the following expression\:
 
-[[[language\=smalltalk
+[[[language=smalltalk
 FFITutorial ticksSinceStart
 ]]]
 
@@ -84,9 +84,9 @@ If everything works as expected, this expression will return the number of nativ
 The simple example we ran in the previous section illustrates several important uFFI concepts.
 For starters, let\'s look at the binding definition again\:
 
-[[[language\=smalltalk
+[[[language=smalltalk
 FFITutorial class >> ticksSinceStart [
-	\^ self ffiCall\: \#( uint clock() ) module\: \'libc.so.6\'
+	^ self ffiCall: #( uint clock() ) module: 'libc.so.6'
 ]
 ]]]
 
@@ -106,7 +106,7 @@ uFFI interprets the declaration and performs all the necessary work needed to ma
 To form the first argument in our example, we render our C declaration for ==clock== in Pharo as a literal string array, like so\:
 
 [[[
-\#( uint clock() )
+#( uint clock() )
 ]]]
 
 The first element of our array is ==uint==, which is the function return ''type''.  This is followed by the function name, ==clock==.  Following the function name, we embed another Pharo Array to list the formal arguments the C function expects, in order. In this case, ==clock== takes no arguments, so we must provide an empty Array.
@@ -138,27 +138,27 @@ So we could say that this solution is not portable enough\: One of the hallmark 
 
 One way to overcome this issue would be to define a set of bindings, one per platform, and decide which one to call based on which platform we detect at run\-time, as follows\:
 
-[[[language\=smalltalk
+[[[language=smalltalk
 FFITutorial class >> ticksSinceStart [
   self platform isWindows
-    ifTrue\: [ \^ self ticksSinceStartWindows ].
+    ifTrue: [ ^ self ticksSinceStartWindows ].
   self platform isUnix
-    ifTrue\: [ \^ self ticksSinceStartUnix ].
+    ifTrue: [ ^ self ticksSinceStartUnix ].
   self platform isOSX
-    ifTrue\: [ \^ self ticksSinceStartOSX ].
-  self error\: \'Non\-supported platform\'
+    ifTrue: [ ^ self ticksSinceStartOSX ].
+  self error: 'Non-supported platform'
 ]
 
 FFITutorial class >> ticksSinceStartUnix [
-  \^ self ffiCall\: \#( uint clock() ) module\: \'libc.so.6\'
+  ^ self ffiCall: #( uint clock() ) module: 'libc.so.6'
 ]
 
 FFITutorial class >> ticksSinceStartOSX [
-  \^ self ffiCall\: \#( uint clock() ) module\: \'libc.dylib\'
+  ^ self ffiCall: #( uint clock() ) module: 'libc.dylib'
 ]
 
 FFITutorial class >> ticksSinceStartWindows [
-  \^ self ffiCall\: \#( uint clock() ) module\: \'msvcrt.dll\'
+  ^ self ffiCall: #( uint clock() ) module: 'msvcrt.dll'
 ]
 ]]]
 
@@ -168,31 +168,31 @@ uFFI solves this problem by allowing us to use ''library objects'' instead of pl
 
 So for our example, we can now define such a library, ==MyLibC==, as follows (being careful to note that the methods are ''instance side'' overrides)\:
 
-[[[language\=smalltalk
-FFILibrary subclass\: \#MyLibC
-	instanceVariableNames\: \'\'
-	classVariableNames\: \'\'
-	package\: \'UnifiedFFI\-Libraries\'
+[[[language=smalltalk
+FFILibrary subclass: #MyLibC
+	instanceVariableNames: ''
+	classVariableNames: ''
+	package: 'UnifiedFFI-Libraries'
 
 MyLibC >> macModuleName [
-	\^ \'libc.dylib\'
+	^ 'libc.dylib'
 ]
 
 MyLibC >> unixModuleName [
-	\^ \'libc.so.6\'
+	^ 'libc.so.6'
 ]
 
 MyLibC >> win32ModuleName [
-	"While this is not a proper \'libc\', MSVCRT has the functions we need here."
-	\^ \'msvcrt.dll\'
+	"While this is not a proper 'libc', MSVCRT has the functions we need here."
+	^ 'msvcrt.dll'
 ]
 ]]]
 
 To use this improved technique, we modify our ''original'' binding method (in *@OriginalTicksSinceStartBinding*) to substitute our library object (as a class) in place of the library name string\:
 
-[[[language\=smalltalk
+[[[language=smalltalk
 FFITutorial class >> ticksSinceStart [
-	\^ self ffiCall\: \#( uint clock() ) module\: MyLibC
+	^ self ffiCall: #( uint clock() ) module: MyLibC
 ]
 ]]]
 
@@ -204,9 +204,9 @@ The ==macModuleName==, ==unixModuleName==, and ==win32ModuleName== methods allow
 
 For example, an alternative override for ==unixModuleName== can limit the search for ==libc== to load only from the ==/usr/lib/== directory on the host this way\:
 
-[[[
+[[[language=smalltalk
 MyLibC >> unixModuleName [
-	\^ \'/usr/bin/libc.so.6\'
+	^ '/usr/bin/libc.so.6'
 ]
 ]]]
 
@@ -216,18 +216,18 @@ To take a real\-world example, let\'s consider where the Cairo graphics library 
 
 In the example below, the Cairo library search method for Linux checks for the existence of the library in each of ==/usr/lib/i386\-linux\-gnu==, ==/usr/lib32==, and ==/usr/lib==, and if found, returns the absolute path to that file\:
 
-[[[language\=smalltalk
+[[[language=smalltalk
 CairoLibrary >> unixModuleName [
-		"On different flavors of Linux, the path to the library may differ, depending on the distro and whether the system is 32\- or 64\-bit."
+		"On different flavors of Linux, the path to the library may differ, depending on the distro and whether the system is 32- or 64-bit."
 
-		\#(
-			\'/usr/lib/i386\-linux\-gnu/libcairo.so.2\'
-			\'/usr/lib32/libcairo.so.2\'
-			\'/usr/lib/libcairo.so.2\')
-		do\: [ \:path \|
-			path asFileReference exists ifTrue\: [ \^ path ] ].
+		#(
+			'/usr/lib/i386-linux-gnu/libcairo.so.2'
+			'/usr/lib32/libcairo.so.2'
+			'/usr/lib/libcairo.so.2' )
+		do: [ :path |
+			path asFileReference exists ifTrue: [ ^ path ] ].
 
-		self error\: \'Cannot locate Cairo library. Please check that it is installed on your system.\'
+		self error: 'Cannot locate Cairo library. Please check that it is installed on your system.'
 ]
 ]]]
 
@@ -239,9 +239,9 @@ The ==time== function receives a (potentially null) C pointer and returns the cu
 We can define our new binding as follows, providing a ==NULL== pointer as the function argument.
 (We leave it to the reader to look up the definition of the C function and determine the purpose of this argument.)
 
-[[[language\=smalltalk
+[[[language=smalltalk
 FFITutorial class >> time [
-	\^ self ffiCall\: \#( uint time( NULL ) ) module\: MyLibC
+	^ self ffiCall: #( uint time( NULL ) ) module: MyLibC
 ]
 ]]]
 
@@ -249,17 +249,17 @@ Our new binding references the ==MyLibC== library we defined earlier, so the abo
 
 To continue our example,
 
-[[[language\=smalltalk
+[[[language=smalltalk
 FFITutorial class >> myLibrary [
-  \^ MyLibC
+  ^ MyLibC
 ]
 
 FFITutorial class >> ticksSinceStart [
-	\^ self ffiCall\: \#( uint clock() ) module\: self myLibrary
+	^ self ffiCall: #( uint clock() ) module: self myLibrary
 ]
 
 FFITutorial class >> time [
-	\^ self ffiCall\: \#( uint time( NULL ) ) module\: self myLibrary
+	^ self ffiCall: #( uint time( NULL ) ) module: self myLibrary
 ]
 ]]]
 
@@ -269,17 +269,17 @@ Any class defining a binding also has the option of defining a default library b
 
 Let\'s see how this further simplies things for us\:
 
-[[[language\=smalltalk
+[[[language=smalltalk
 FFITutorial class >> ffiLibraryName [
-  \^ MyLibC
+  ^ MyLibC
 ]
 
 FFITutorial class >> ticksSinceStart [
-	\^ self ffiCall\: \#( uint clock() )
+	^ self ffiCall: #( uint clock() )
 ]
 
 FFITutorial class >> time [
-	\^ self ffiCall\: \#( uint time( NULL ) )
+	^ self ffiCall: #( uint time( NULL ) )
 ]
 ]]]
 
@@ -289,9 +289,9 @@ Of course, bindings defining a library explicitly will necessarily override this
 
 In this chapter we have seen the basics of writing our own uFFI call\-outs. We declare an FFI binding to a C function by specifying the name of the function, its return type, its arguments, and the library the function belongs to. uFFI uses this information to load the library in memory, look up the function, demarshall our Pharo arguments to C types and push them, call the function, and marshall any C return values back into Pharo objects.
 
-[[[language\=smalltalk
+[[[language=smalltalk
 FFITutorial class >> time [
-	\^ self ffiCall\: \#( uint time( NULL ) )
+	^ self ffiCall: #( uint time( NULL ) )
 ]
 ]]]
 
