@@ -70,7 +70,7 @@ FFITutorial class >> ticksSinceStart [
 ]
 ]]]
 
-Finally, we can use our freshly\-created bindings in a Pharo playground by inspecting or printing the following expression\:
+Finally, we can use our freshly\-created binding in a Pharo playground by inspecting or printing the following expression\:
 
 [[[language\=smalltalk
 FFITutorial ticksSinceStart
@@ -93,7 +93,7 @@ FFITutorial class >> ticksSinceStart [
 This call\-out binding, a Pharo method, is called ==ticksSinceStart== and happens to be named differently than the C function we are calling.
 Indeed, uFFI does not impose any restrictions as far as how to call your external functions.  This can come in handy for decoupling your methods from underlying C\-level implementation details.
 
-We invoke the C function using the Pharo method ==ffiCall\:module\:==, which is defined by uFFI.  We provide the message arguments it needs usually by just copying and pasting the target C function declaration inside a Pharo Array literal, then referencing the name of the library in which it\'s defined (which is general will be platform\-dependent).
+We invoke the C function using the Pharo method ==ffiCall\:module\:==, which is defined by uFFI.  We provide the message arguments it needs usually by just copying and pasting the target C function declaration inside a Pharo Array literal, then referencing the name of the library in which it\'s defined (which in general will depend on our host platform).
 
 uFFI interprets the declaration and performs all the necessary work needed to make the call\-out and return the result.  In general,
 - uFFI searches for the specified library in the host system,
@@ -111,7 +111,7 @@ To form the first argument in our example, we render our C declaration for ==clo
 
 The first element of our array is ==uint==, which is the function return ''type''.  This is followed by the function name, ==clock==.  Following the function name, we embed another Pharo Array to list the formal arguments the C function expects, in order. In this case, ==clock== takes no arguments, so we must provide an empty Array.
 
-Another way to think of the declaration argument is this\: If we look past the outer ==\#( )== wrapper, what we see inside is our C function prototype, appearing very similar to normal C syntax.  This is possible due to the coincidental nature of Smalltalk syntax\: our use of strings and array notation in Pharo nicely mirrors how we write a C function declaration.  uFFI was intentionally designed to take advantage of this so that in most cases we can simply copy\-paste a C function declaration taken from a header file or documentation, wrap it in ==\#( )==, and it\'s ready for use\!
+Another way to think of the declaration argument is this\: If we look past the outer ==\#( )== wrapper, what we see inside is our C function prototype, appearing very similar to normal C syntax.  This convenience is possible due to the coincidental nature of Smalltalk syntax\: our use of strings and array notation in Pharo nicely mirrors how we write a C function declaration.  uFFI was intentionally designed to take advantage of this so that in most cases we can simply copy\-paste a C function declaration taken from a header file or documentation, wrap it in ==\#( )==, and it\'s ready for use\!
 
 Our ==ffiCall\:module\:== message also needs a second argument (==\'libc.so.6\'== in our Linux example), which is the name of the library in our host that contains the function.  In many cases we do not need to provide a full path to the file in our host system.  However, it should already be apparent that our bindings can be platform dependent if the library we need is also platform\-dependent.  We will explore how to define bindings in a platform\-independent way in a following section.
 
