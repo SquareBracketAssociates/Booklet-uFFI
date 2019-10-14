@@ -1,10 +1,10 @@
 !! Foreign Function Interface and Call\-Outs
 
-A Foreign Function Interface (FFI) is a programming language mechanism that allows software written in one language to use resources (functions and data structures) that were written in and compiled with a different language.  These \"foreign\" resources typically take the form of shared libraries, such as DLL files in Windows (or \'.so\' files in Linux and Mac) and can include run\-time services made available by your operating system.  A good example is a driver provided by a vendor of a computer peripheral, such as a printer or a network card.
+A Foreign Function Interface (FFI) is a programming language mechanism that allows software written in one language to use resources (functions and data structures) that were written in and compiled with a different language.  These \"foreign\" resources typically take the form of shared libraries, such as DLL files in Windows (or \'.so\' files in Linux and Mac) and can include run\-time services made available by your operating system.  A good example is a driver library provided by a vendor of a computer peripheral, such as a printer or a network card.
 
 Code sharing and reuse via an FFI is fundamentally different from source code \"includes\", calls to IDE libraries, or messages sent to the base classes provided by your language\'s development environment.  In those cases, your compiler can link function calls and share structured data while making convenient assumptions about the object code interface (known as the ABI, or Application Binary Interface).  This is familiar programming\: We follow published APIs (Application Programming Interfaces) as we write our code, and the compiler takes care of the low\-level connections for us transparently.
 
-However, if the compiled resources we wish to link to were built with a different language (or even a different compiler of the same language), the bits and bytes may not line up properly when we push arguments, make calls, and retrieve results, due to the different standards that the other code\'s compiler followed when the borrowed code was produced.  In this case, more detailed bookkeeping must be followed by our language to make ABI translations and ensure that differences in issues such as data alignment, byte ordering, calling conventions, garbage collection, pointer references, and so forth are accounted for.  Without this, we risk not only getting incorrect results \-\- we could crash our process (or even the operating system).
+However, if the compiled resources we wish to link to were built with a different language (or even a different compiler of the same language), the bits and bytes may not line up properly when we push arguments, make calls, and retrieve results, due to the different standards that the other code\'s compiler followed when the borrowed code was produced.  In this case, more detailed bookkeeping must be followed by our language to make ABI translations and ensure that differences in issues such as data alignment, byte ordering, calling conventions, garbage collection, pointer references, and so forth are all accounted for.  Without this, we risk not only getting incorrect results \-\- we could crash our process (or even the operating system).
 
 While in theory FFI interfaces can be defined to link any pair of differing languages, most languages are designed to interact with libraries written in the C language.  This is because C has a long heritage and widespread use, and (importantly) C has a predictable, standardized way to compile functions and structures.  So with Pharo also choosing C as an FFI target we gain two major advantages\: first, by basing ourselves on such \"standard\" formats, we can build tools that simplify interoperability with an extensive array of existing C libraries.  Second, since nearly every other language is doing the same, we can simply join those mutual C\-standard ABIs together to form a bridge between different systems \-\- allowing us to program at the source level of a C API.
 
@@ -24,12 +24,12 @@ named ==clock==. This function is part of the standard C library (==libc==). Its
 clock\_t clock( void )\;
 ]]]
 
-For the sake of simplicity, let\'s treat ==clock==\'s return type as an unsigned ==uint== instead of ==clock\_t==.
+For the sake of simplicity, let\'s treat ==clock==\'s return type as an unsigned, ==uint==, instead of ==clock\_t==.
 (We will discuss types, conversions, and typedefs in subsequent chapters.)
 This results in the following C function declaration\:
 
 [[[
-uint clock( void )
+uint clock( void )\;
 ]]]
 
 To call ==clock== from Pharo using uFFI, we need to define a binding between a Pharo method and the ==clock== function.
@@ -39,10 +39,10 @@ To write our first binding, let\'s start by defining a new class, ==FFITutorial=
 This class will act as a module and encapsulate not only the functions we want to call but also any state we would like to persist.
 To access the ==clock== function, we then define a method in our ==FFITutorial== class using the ==ffiCall\:module\:== message to specify the declaration of the C function and indicate where it is defined. We will technically refer to this binding as a ''call\-out'', since it ''calls'' a function in the ''outside'' world (the C world).
 
-If we are hosted on a Linux system, we define this class and (class\-side) method like so\:
+If our Pharo code is hosted on a Linux system, we define this class and (class\-side) method like so\:
 
 [[[language\=smalltalk
-Object subclass\: \\#FFITutorial
+Object subclass\: \#FFITutorial
 	instanceVariableNames\: \'\'
 	classVariableNames\: \'\'
 	package\: \'FFITutorial\'
@@ -93,11 +93,13 @@ FFITutorial class >> ticksSinceStart [
 This call\-out binding, a Pharo method, is called ==ticksSinceStart== and happens to be named differently than the C function we are calling.
 Indeed, uFFI does not impose any restrictions as far as how to call your external functions.  This can come in handy for decoupling your methods from underlying C\-level implementation details.
 
-We invoke the C function using the Pharo method ==ffiCall\:module\:==, which is defined by uFFI.  We provide the message arguments it needs usually by just copying and pasting the target C function declaration inside a Pharo Array literal, then referencing the name of the library in which it\'s defined.  uFFI interprets the declaration and performs all the necessary work needed to make the call\-out and return the result\:
-- uFFI searches for the specified library in our host system,
+We invoke the C function using the Pharo method ==ffiCall\:module\:==, which is defined by uFFI.  We provide the message arguments it needs usually by just copying and pasting the target C function declaration inside a Pharo Array literal, then referencing the name of the library in which it\'s defined (which is general will be platform\-dependent).
+
+uFFI interprets the declaration and performs all the necessary work needed to make the call\-out and return the result.  In general,
+- uFFI searches for the specified library in the host system,
 - On finding it, loads the C library into memory,
 - Indexes the specified function within the library,
-- Transforms and pushes our Pharo arguments (if any) onto the stack,
+- Transforms and pushes Pharo arguments (if any) onto the stack,
 - Performs the call to the C function,
 - And finally transforms the return value into a Pharo object.
 
@@ -112,7 +114,6 @@ The first element of our array is ==uint==, which is the function return ''type'
 Another way to think of the declaration argument is this\: If we look past the outer ==\#( )== wrapper, what we see inside is our C function prototype, appearing very similar to normal C syntax.  This is possible due to the coincidental nature of Smalltalk syntax\: our use of strings and array notation in Pharo nicely mirrors how we write a C function declaration.  uFFI was intentionally designed to take advantage of this so that in most cases we can simply copy\-paste a C function declaration taken from a header file or documentation, wrap it in ==\#( )==, and it\'s ready for use\!
 
 Our ==ffiCall\:module\:== message also needs a second argument (==\'libc.so.6\'== in our Linux example), which is the name of the library in our host that contains the function.  In many cases we do not need to provide a full path to the file in our host system.  However, it should already be apparent that our bindings can be platform dependent if the library we need is also platform\-dependent.  We will explore how to define bindings in a platform\-independent way in a following section.
-
 
 !!! Notes on Value Marshalling
 
@@ -133,7 +134,7 @@ Moreover, we will learn how to define our own user\-defined data types and type 
 
 We saw earlier that a call\-out binding requires us to specify a module or library that uFFI uses to locate and load the desired function.  In our previous example, we indicated to Pharo that the ==clock== function we need was inside the standard C library, namely, the file ==libc.so.6==.  However, this form of the library exists in Linux systems, but not in Windows.
 
-So we could say that this solution is not portable enough\: One of the hallmark qualities of Smalltalk is supposed to be platform independence.  But if we want to load and run ''this'' code on a different host platform, we are faced with changing the library name to match the name on our new host system.  Worse, the libraries we need will all too often not have the same name, or be located in the same place on all platforms. Not only that, we would need to be sure we catch every instance of these kinds of dependencies when we perform this \"migration\". Ugh\!
+So we could say that this solution is not portable enough\: One of the hallmark qualities of Smalltalk is supposed to be platform independence.  But if we want to load and run ''this'' code on a different host platform, we are faced with changing the library name to match the name on our new host system.  Worse, the libraries we need will all too often not have the same name, nor be located in the same place on all platforms. Not only that, we would need to be sure we catch every instance of these kinds of dependencies when we perform this \"migration\". Ugh\!
 
 One way to overcome this issue would be to define a set of bindings, one per platform, and decide which one to call based on which platform we detect at run\-time, as follows\:
 
@@ -163,7 +164,7 @@ FFITutorial class >> ticksSinceStartWindows [
 
 But this solution means our binding code (which is essentially the same in all cases) gets repeated three times, and any changes to the binding design will require changing all three binding methods. This may look simple enough for our ==clock== binding, but repeating the code of complex bindings is likely not an optimal solution...
 
-uFFI solves this problem by allowing us to use ''library objects'' instead of plain strings like we did earlier.  A library object represents a library as an instance of ==FFILibrary==, abstracting away any platform dependencies.  This library class defines methods ==macModuleName==, ==unixModuleName==, and ==win32ModuleName==\; uFFI internally selects the correct library name at run\-time after sensing the host platform. Bonus\: This selection is a ''process'', not a literal (a string), so it can now include the ability to dynamically search through different directories on your host system to locate the correct version of a library, as we will see shortly.
+uFFI solves this problem by allowing us to use ''library objects'' instead of plain strings like we did earlier.  A library object represents a library as an instance of ==FFILibrary==, abstracting away any platform dependencies.  This library class defines methods ==macModuleName==, ==unixModuleName==, and ==win32ModuleName==\; uFFI internally selects the correct library name at run\-time after sensing the host platform. Bonus\: This selection is a ''process'', not a literal (a string), so it can now include behavior, such as the ability to dynamically search through different directories on your host system to locate the correct version of a library, as we will see shortly.
 
 So for our example, we can now define such a library, ==MyLibC==, as follows (being careful to note that the methods are ''instance side'' overrides)\:
 
@@ -201,7 +202,7 @@ FFITutorial class >> ticksSinceStart [
 
 The ==macModuleName==, ==unixModuleName==, and ==win32ModuleName== methods allow us, as developers, to employ different strategies to search for libraries and functions, depending on our host platform. If these methods return a relative path, library searching starts in common/default library directories on the system, or adjacent to the virtual machine executable. If they return an absolute path, default system locations will not be searched, only the specified path will be. In either case, if the library is not found or cannot be loaded, an exception is raised.
 
-For example, an alternative override for ==unixModuleName== can limit the search for ==libc== to load only from the ==/usr/lib/== directory on the host\:
+For example, an alternative override for ==unixModuleName== can limit the search for ==libc== to load only from the ==/usr/lib/== directory on the host this way\:
 
 [[[
 MyLibC >> unixModuleName [
