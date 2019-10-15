@@ -158,7 +158,7 @@ While writing library bindings with uFFI is fun and simple, the binding develope
 !!! Function Argument Bindings
 
 We have seen in the earlier introductory example how to use method parameters as arguments when writing function bindings.
-In this section we explore other ways to define arguments, in particular literal objectss, instance variables, and class variables.
+In this section we explore other ways to define arguments, in particular literal objects, instance variables, and class variables.
 
 !!!! Literal Integer Arguments
 
