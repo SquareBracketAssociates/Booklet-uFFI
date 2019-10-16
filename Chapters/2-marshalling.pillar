@@ -56,7 +56,7 @@ As we saw regarding return values in Chapter 1, Pharo\'s uFFI also manages the t
 To illustrate how marshalling works, let\'s consider the case of transforming a Pharo ==SmallInteger== to a C ==int== type, as in our example.
 Internally, for efficiency purposes, Pharo represents ==SmallInteger==s directly in binary, rather than as an object pointed to in the heap.  Therefore, to differentiate integers from object pointers, Pharo tags ==SmallInteger== \"pointers\" with an extra bit to signify this special interpretation.
 
-Consider the ==SmallInteger== 2; this value is represented in binary as the number ==2r10==, but is internally represented in Pharo as ==2r101==, where the ''least'' significant bit is shifted in as the added tag.  Since all Pharo object pointers are at least 32-bit aligned, we\'re guaranteed that their least significant bit will always be zero.  This makes a non-zero LSB a reliable indicator that we\'re dealing with a ==SmallInteger== rather than a heap pointer.  (This is also why Pharo ==SmallInteger==s are \"only\" 31 bits in 32-bit images and 61 bits in 64-bit images).
+Consider the ==SmallInteger 2==; this value is represented in binary as the number ==2r10==, but is internally represented in Pharo as ==2r101==, where the ''least'' significant bit (LSB) is shifted in as the added tag.  Since all Pharo object pointers are at least 32-bit aligned, we\'re guaranteed that their least significant bit will always be zero.  This makes a non-zero LSB a reliable indicator that we\'re dealing with a ==SmallInteger== rather than a heap pointer.  (This is also why Pharo ==SmallInteger==s are \"only\" 31 bits in 32-bit images and 61 bits in 64-bit images).
 
 This ''representation mismatch'' requires that the uFFI transform ==SmallInteger==s to C ==int==s (and vice\-versa) as follows:
 - A Pharo ==SmallInteger== value transformed to a C value needs to be logically shifted to the right, ==2r101 >> 1==, transforming ==2r101== to ==2r10==.
@@ -204,7 +204,7 @@ So while writing library bindings with uFFI is fun and simple, the binding devel
 !!! Function Argument Bindings
 
 We have seen in the earlier introductory example how to use method parameters as arguments when writing function bindings.
-In this section we explore other ways to define arguments \-\- in particular literal integers, instance variables, and class variables.
+In this section we explore other ways to define arguments \-\- in particular literal objects, instance variables, and class variables.
 
 !!!! Literal Integer Arguments
 
@@ -239,9 +239,10 @@ This type information is needed by uFFI to correctly determine how to transform 
 
 Consider that in the case of C integers, a number can be signed or unsigned, and can occupy different sizes such as 8, 16, 32, or 64 bits.  Pharo can\'t guess; the C function expects a specific type to be provided, and the Pharo object containing the value doesn\'t reflect this.  We have to explicitly \'type\' the literal when we type it in.
 
-We will present more detail about the different data types accepted by uFFI, in particular integer data types, in an upcoming section of this chapter.
+Most of the literals accepted in Pharo code are accepted in uFFI call-outs too: e.g., integers, floats, strings, arrays.
+We will present more detail about the different data types and how they are marshalled by uFFI in a subsequent section.
 
-!!!! Variables
+!!!! Class Variables
 
 In the method above we used a literal number as an argument in a uFFI call\-out. Although handy, literal numbers fall into the category of so\-called \"magic numbers\"\: Embedded literals in code that offer no explanation of where they came from, why they were chosen, or how they were calculated.  (These are distinguished from ''manifest constants'', which are more-or-less self-explanatory, such as using ''pi'' in angle calculations or \'2\' when we need to divide a quantity in half.)
 
@@ -252,17 +253,17 @@ Embedding magic numbers in methods is a ''code smell'' and should be avoided.  O
 ]]]
 
 In Pharo, we can take a similar approach by defining such values in class variables.
-We only need to change the definition of our ==FFITutorial== class to include a class variable such as ==TheAnswer== (which is therefore capitalized), and then define a class-side ==initialize== method to set its value (''and explain why''). Do ""not"" forget to execute this ==initialize== method, otherwise the value won\'t get set\!
+We only need to change the definition of our ==FFITutorial== class to include a class variable such as ==MagicNumber== (which is therefore capitalized), and then define a class-side ==initialize== method to set its value (''and explain why''). Do ""not"" forget to execute this ==initialize== method, otherwise the value won\'t get set\!
 
 [[[language=smalltalk
 Object subclass: #FFITutorial
 	...
-	classVariableNames: 'TheAnswer'
+	classVariableNames: 'MagicNumber'
   ...
 
 FFITutorial class >> initialize [
 	"Set this to -42 because.. Life, the Universe, and Everything."
-	TheAnswer := -42.
+	MagicNumber := -42.
 ]
 ]]]
 
@@ -270,7 +271,7 @@ Finally, we update our call\-out binding to use our class variable, remembering 
 
 [[[language=smalltalk
 FFITutorial class >> absMinusFortyTwo [
-  ^ self ffiCall: #( int abs ( int TheAnswer ) )
+  ^ self ffiCall: #( int abs ( int MagicNumber) )
 ]
 ]]]
 
@@ -284,12 +285,12 @@ The binding using the variable remains unchanged.
 [[[language=smalltalk
 SharedPool subclass: #FFITutorialPool
 	...
-	classVariableNames: 'TheAnswer'
+	classVariableNames: 'MagicNumber'
   ...
 
 FFITutorialPool class >> initialize [
 	"Set this to -42 because.. Life, the Universe, and Everything."
-	TheAnswer := -42.
+	MagicNumber := -42.
 ]
 
 Object subclass: #FFITutorial
@@ -298,13 +299,31 @@ Object subclass: #FFITutorial
   ...
 
 FFITutorial class >> absMinusFortyTwo [
-  ^ self ffiCall: #( int abs ( int TheAnswer ) )
+  ^ self ffiCall: #( int abs ( int MagicNumber ) )
 ]
 ]]]
 
 Using a shared pool does not change the normal Pharo usage of uFFI. If you want to learn more about Pharo shared pools, we recommend you take a look at ''Pharo by Example 8.0''.
 
-Finally, we can also pass ==self== as an argument to a C call.
+!!!! Instance Variables
+
+uFFI also supports using instace variables as arguments to a C call-out.
+When such a call-out is executed, the value of the instance variable is used as argument and marshalled given the type information in the binding definition.
+
+Using instance variables in ffi bindings can come in handy to define object-oriented APIs to C libraries.
+Indeed, objects can encapsulate the state required to perform the ffi calls and hide the call-outs as normal messages.
+
+[[[language=smalltalk
+MyClass >> doSomething [
+	^ self ffiCall: #( int myFunction ( int myInstanceVariable ) ) module: LibC
+]
+]]]
+
+For the time being, we let you, the reader, to experiment with these as an exercise.
+
+!!!! Special Variables: the case of ==self==
+
+We can also pass ==self== as an argument to a C call.
 Suppose we want to add the ==abs()== function call to an extention of the class ==SmallInteger==, in a method named  ==absoluteValue==.  This would allows us to write expressions such as ==\-50 absoluteValue==.
 
 To do this, we simply add an ==absoluteValue== method to ==SmallInteger== and directly pass ==self== as a (typed) argument, like so\:
@@ -315,7 +334,8 @@ SmallInteger >> absoluteValue [
 ]
 ]]]
 
-It is is also possible to pass instance variables, but we\'ll let you experiment with that as an exercise... \:\^)
+Using ==self== as argument has several benefits other than its usage for integers.
+In combination with complex types such as structs and opaque objects, using ==self== as argument is a powerful tool to write OOP flavoured bindings for C libraries.
 
 !!! uFFI Data Types
 
