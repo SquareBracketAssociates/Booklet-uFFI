@@ -206,7 +206,7 @@ So while writing library bindings with uFFI is fun and simple, the binding devel
 We have seen in the earlier introductory example how to use method parameters as arguments when writing function bindings.
 In this section we explore other ways to define arguments \-\- in particular literal objects, instance variables, and class variables.
 
-!!!! Literal Integer Arguments
+!!!! Literal Object Arguments
 
 From time to time we will find ourselves calling C functions that require many more parameters than the ones we are actually interested in providing.
 For example, C functions may have extra parameters to select or control certain options and configurations, or they may have parameters that are only necessary in particular cases (and which are ignored in others).
