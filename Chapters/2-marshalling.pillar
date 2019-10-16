@@ -389,24 +389,6 @@ Notice that you can add arguments by appending them to the arguments array, usin
 notice that you have to explicitly tell which object is going to be sent for each argument, as already told. In this
 case, aString is the first one and anotherString is the second one.
 
-!!! Getting return value from a function
-
-Symmetrically to arguments, returned values are also marshalled, it means that C values are converted to Smalltalk objects.
-
-We already saw that implicitly through multiple examples since the beginning of the chapter.
-For example in the ==abs== example, the result is converted from an int to a SmallInteger.
-In the ==floor== example, the  result is converted from a double to a Float.
-
-But FFI-NB can also convert types a bit more complex than atomic types, like String
-
-[[[language=smalltalk
-FFICExamples >> #getEnv: aString [
-	^ self ffiCall: #( String getenv (String string) ) module: LibC
-]
-]]]
-
-There is a mapping defined for each atomic type. About a bit more complex objects (like external objects or structures),
-we will talk in following sections.
 
 !!! Returning "void *"
 
