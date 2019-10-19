@@ -21,7 +21,7 @@ int abs( int n );
 
 Creating a binding for such a function requires that we provide an ==int== argument in our binding \-\- specifying both type and value.
 To ease the construction of argument bindings, uFFI will attempt to match any parameter names in our calling method to corresponding function parameters that have the same names.
-In other words, we can define our binding for ==abs()== as a method with a single ==n== keyword argument as follows (remembering that our FFITutorial class now conveniently provides uFFI with the correct C library):
+In other words, we can define our binding for ==abs()== as a method with a single ==n== keyword argument as follows (remembering that our ==FFITutorial== class now conveniently provides uFFI with the correct C library):
 
 [[[language=smalltalk
 FFITutorial class >> abs: n [
@@ -42,7 +42,7 @@ FFITutorial class >> abs: anInteger [
 ]
 ]]]
 
-Finally, we can call this binding with a regular Pharo ==SmallInteger== by entering the following in a playground\:
+Finally, we can call this binding with a Pharo ==SmallInteger== by entering the following in a playground\:
 
 [[[language=smalltalk
 FFITutorial abs: -42.
@@ -51,25 +51,25 @@ FFITutorial abs: -42.
 
 !!! Marshalling
 
-As we saw regarding return values in Chapter 1, Pharo\'s uFFI also manages the transformation of function arguments for us. The syntax we use may give the impression that uFFI simply copies the Pharo integer value to the C stack; however, the marshalling rules that uFFI must follow are not that straight-forward.  Pharo and C use different internal representations for their data types, which must be modified in order to be exchanged, potentially in different ways (usually depending on the host platform).
+As we saw regarding return values in Chapter 1, Pharo\'s uFFI also manages the transformation of function arguments for us. The syntax we used may give the impression that uFFI simply copies the Pharo integer value to the C stack; however, the marshalling rules that uFFI must follow are not that straight-forward.  Pharo and C use different internal representations for their data types, which must be modified in order to be exchanged, potentially in different ways (usually depending on the host platform).
 
 To illustrate how marshalling works, let\'s consider the case of transforming a Pharo ==SmallInteger== to a C ==int== type, as in our example.
 Internally, for efficiency purposes, Pharo represents ==SmallInteger==s directly in binary, rather than as an object pointed to in the heap.  Therefore, to differentiate integers from object pointers, Pharo tags ==SmallInteger== \"pointers\" with an extra bit to signify this special interpretation.
 
 Consider the ==SmallInteger 2==; this value is represented in binary as the number ==2r10==, but is internally represented in Pharo as ==2r101==, where the ''least'' significant bit (LSB) is shifted in as the added tag.  Since all Pharo object pointers are at least 32-bit aligned, we\'re guaranteed that their least significant bit will always be zero.  This makes a non-zero LSB a reliable indicator that we\'re dealing with a ==SmallInteger== rather than a heap pointer.  (This is also why Pharo ==SmallInteger==s are \"only\" 31 bits in 32-bit images and 61 bits in 64-bit images).
 
-This ''representation mismatch'' requires that the uFFI transform ==SmallInteger==s to C ==int==s (and vice\-versa) as follows:
+This ''representation mismatch'' requires that the uFFI transform ==SmallInteger==s to C ==int==s (and vice\-versa) as follows (using the values in our particular example)\:
 - A Pharo ==SmallInteger== value transformed to a C value needs to be logically shifted to the right, ==2r101 >> 1==, transforming ==2r101== to ==2r10==.
 - A C integer value (representable in 31/61 bits or less) transformed to a Pharo ==SmallInteger== needs to be shifted to the left and incremented, ==(2r10 << 1) + 1==, transforming ==2r10== to ==2r101==.
 
 Each type\-to\-type transformation has its own particular rule that uFFI follows to ensure that correct representation is always maintained.
 
-!!!! Pharo-to-C Marshalling
+!!!! Pharo-to-C Demarshalling
 
-When marshalling Pharo objects to C, uFFI decides the transformation rule to use depending on two pieces of information.
-First, it considers the concrete type of the marshalled Pharo object, ''its class''.
+When demarshalling Pharo objects to C values, uFFI decides the transformation rule to use depending on two pieces of information.
+First, it considers the concrete type of the Pharo object, ''its class''.
 Second, it considers the C type defined in the function binding as the target transformation type.
-At run time, when the binding method is executed, uFFI reads the type of the Pharo argument and transforms the argument object into the indicated C type representation, performing a type cast/coercion as necessary.
+At run time, when the binding method is executed, uFFI reads the type of the Pharo argument and transforms the argument object into the indicated C type representation (if possible), performing a type cast/coercion as necessary.
 
 These transformation rules can have consequences, which we illustrate with the following cases, using our previous ==abs:== binding example\:
 
@@ -249,7 +249,7 @@ In the method above we used a literal number as an argument in a uFFI call\-out.
 Embedding magic numbers in methods is a ''code smell'' and should be avoided.  One way to handle these kinds of values is to parameterize them\: assign them names, usually as a variable or named constant.  C libraries often define such constants using ==\#define== pre-processor statements such as\:
 
 [[[language=c
-  #define TheAnswer -42
+  #define MagicNumber -42
 ]]]
 
 In Pharo, we can take a similar approach by defining such values in class variables.
@@ -307,11 +307,13 @@ Using a shared pool does not change the normal Pharo usage of uFFI. If you want 
 
 !!!! Instance Variables
 
-uFFI also supports using instace variables as arguments to a C call-out.
-When such a call-out is executed, the value of the instance variable is used as argument and marshalled given the type information in the binding definition.
+uFFI also supports using instance variables as arguments to a C call-out.
+When such a call-out is executed, the value of the instance variable is demarshalled to form the argument, using the type information in the binding definition.
 
-Using instance variables in ffi bindings can come in handy to define object-oriented APIs to C libraries.
-Indeed, objects can encapsulate the state required to perform the ffi calls and hide the call-outs as normal messages.
+The use of instance variables in uFFI bindings can come in handy when defining object-oriented APIs to C libraries.
+Since objects hold values as well as define behaviors, they can both encapsulate the state required to perform the uFFI calls while masking the call-outs as normal messages.
+
+So we see that the syntax is essentially the same as what we saw for class variables.  Note that we can can even hold the function name in a Pharo variable\:
 
 [[[language=smalltalk
 MyClass >> doSomething [
@@ -319,14 +321,14 @@ MyClass >> doSomething [
 ]
 ]]]
 
-For the time being, we let you, the reader, to experiment with these as an exercise.
+We will let you, the reader, experiment with these as an exercise.
 
-!!!! Special Variables: the case of ==self==
+!!!! Special Variables: The Case of ==self==
 
 We can also pass ==self== as an argument to a C call.
 Suppose we want to add the ==abs()== function call to an extention of the class ==SmallInteger==, in a method named  ==absoluteValue==.  This would allows us to write expressions such as ==\-50 absoluteValue==.
 
-To do this, we simply add an ==absoluteValue== method to ==SmallInteger== and directly pass ==self== as a (typed) argument, like so\:
+To do this, we simply add an ==absoluteValue== method to ==SmallInteger== and directly pass ==self== as a (typed) argument.  Though a pseudo-variable, Pharo will demarshall ==self== correctly as it does any instance variable\:
 
 [[[language=smalltalk
 SmallInteger >> absoluteValue [
@@ -334,40 +336,43 @@ SmallInteger >> absoluteValue [
 ]
 ]]]
 
-Using ==self== as argument has several benefits other than its usage for integers.
-In combination with complex types such as structs and opaque objects, using ==self== as argument is a powerful tool to write OOP flavoured bindings for C libraries.
+Using ==self== as an argument has several benefits beyond these uses as integers.
+In combination with complex types such as C ==struct==s and opaque objects, using ==self== as argument is a powerful tool for writing OOP\-flavored bindings to C libraries.
 
 !!! Marshalling C Pointers
 
-In Pharo, the objects we send as method arguments are always conceptually passed by reference.
-This means that every time we send an object as argument, the receiver and the sender have references to the same object: this argument object is shared.
-Although some special objects like small integers are instead passed by copy, this implementation detail is completely transparent and has no impact whatsoever in our code code regarding this.
+In Pharo, the objects we send as method arguments are always conceptually \"passed by reference\".
+This means that every time we provide an object as an argument, the receiver and the sender hold references to the same object: the argument object is ''shared''.
+(One exception to this is the set of Pharo ==SmallInteger==s, which are Pharo primitives, and therefore passed by value.  However, this implementation detail is completely transparent to Pharo code, and has no impact beyond the implementation of uFFI demarshalling rules, as we saw earlier).
 
-In contrast to Pharo, function arguments in C are by default sent by copy.
-In other words, every time we send an integer or a float as argument to a function, that value is copied before the function executes.
-This copy, trivial for simple values like numbers, has quite an impact on complex mutable types such as structures: if the invoked function modifies the copy received as argument, the original value remains untouched.
-In addition to this default behaviour, C supports to send arguments by reference by using **pointers**.
-C pointers can be specified in function declarations by the use of the ==*== character.
-For example, a function ==foo()== that receives an ==int== pointer as argument and returns a ==char== pointer, will have a function declaration like the following one:
+In contrast to Pharo, many function arguments in C are, by default, \"passed by value\".
+For example, every time we send an integer or a float as an argument to a function, its value is ''copied'' (pushed onto the C stack) prior to calling the function.
+Passing by value, while trivial for simple types such as numbers, usually demands more consideration when dealing with complex ''mutable'' types, such as arrays and structures.  If an invoked function were to modify a ''copy'' of data received as an argument, the original value held by the caller would remain unmodified \-\- which might not be the intended outcome.
+
+Therefore, in addition to ''pass by value'', C too supports passing arguments by reference, in this case using **pointers** (a C type that equates to an address in memory).
+Use of a C pointer as an argument is often denoted explicitly in function declarations by prefixing the ==*== character to a variable name (although some C types are implicitly of pointer type).
+
+For example, a function ==foo()== that receives an ==int== pointer as an argument and returns a ==char== pointer will have a function declaration similar to the following\:
 
 [[[language=c
 char *foo ( int *arg );
 ]]]
 
 uFFI supports pointers by introducing a new kind of object: ==ExternalAddress==.
-==ExternalAddress==es are objects that represent memory addresses, thus their possible values range from ''NULL'' to the maximum possible address of your computer's architecture, either 2^32 or 2^64 for 32bits or 64bits respectively.
+==ExternalAddress==es are objects that represent memory addresses, thus their possible values range from ==NULL== to the maximum possible address the host operating system allows, either 2^32 or 2^64 for 32-bit or 64-bit systems, respectively.
 
-!!!! Getting an ==ExternalAddress==
+!!!! Obtaining an ==ExternalAddress==
 
-The most common way of obtaining an ==ExternalAddress== is to get is as the return value of a function.
-Let's consider for example the function ==malloc()== that receives an integer specifying a size, tries to allocate as much memory as the size requested and, if successful, returns a pointer to the allocated region of memory.
-The C declaration of such function reads as follows in the manual:
+The most common way of obtaining an ==ExternalAddress== is to receive it as the return value of a called C function.
+A good example is the ==libc== function ==malloc()==, which takes an integer specifying the desired size of a heap buffer, tries to allocate a contiguous block of memory of the size requested, and, if successful, returns a pointer to the allocated region of memory.
+
+The C declaration of such function reads as follows (from the ==libc== manual)\:
 
 [[[language=c
-void * malloc(size_t size);
+void *malloc( size_t size );
 ]]]
 
-And we proceed to create a uFFI binding to it by copy-pasting the declaration as follows: 
+We only need create a uFFI binding to it by copy-pasting the declaration as follows\:
 
 [[[language=smalltalk
 FFITutorial class >> malloc: aSize [
@@ -375,73 +380,77 @@ FFITutorial class >> malloc: aSize [
 ]
 ]]]
 
-Notice that this function returns a generic pointer, of type ==void *==, which in uFFI maps to a ==ExternalAddress==.
-In other words, our ==malloc()== binding yields an ==ExternalAddress== in return.
-For example, if we ask to allocate 200 bytes as follows, we get an address that belongs to the C heap:
+Notice that this function returns a \"generic pointer\", of type ==void *== (meaning, what it points to in memory is ''untyped''). In uFFI, this is marshalled to a ==ExternalAddress== object.
+In other words, our ==malloc()== binding yields an ==ExternalAddress== in return (if successful).
+
+For example, if we use the above binding to ask the system to allocate a buffer of 200 bytes for us, then on return we should have an address that points somewhere in the C heap\:
 
 [[[language=smalltalk
 FFITutorial malloc: 200
  => (void*)@ 16r7FFBDE0DE030
 ]]]
 
-And if we ask for too much memory, ==malloc()== fails and returns a ''NULL'' pointer:
+But if we ask for more memory than is currently available, ==malloc()== will fail and return a ==NULL== pointer instead\:
 
 [[[language=smalltalk
 FFITutorial malloc: SmallInteger maxVal
  => (void*)@ 16r00000000
 ]]]
 
-!!!! Pointer Arguments
+Consequently, we must always check the return value in cases like this, lest we invoke the infamous \"null pointer assignment\" bug.
 
-Pointers appear in function arguments too.
-Consider for example the function ==free()==, used to de-allocated a region of memory previously allocated with, e.g., ==malloc()==.
-==free()== receives as argument a pointer, de-allocates the memory pointed by it, and returns nothing.
-The declaration of ==free()== looks like:
+!!!! Pointers as Arguments
+
+Pointers can appear as function arguments, too.
+Consider for example the function ==free()==, used to de-allocate a block of memory previously allocated with, e.g., ==malloc()==. As the complement to memory allocation functions, ==free()== takes a memory pointer as an argument (which is ""required"" to have originated from a memory allocation system call\!), de-allocates the memory pointed to by it, and returns nothing.
+
+The declaration of ==free()== looks like this\:
 
 [[[language=c
-void free(void *ptr);
+void free( void *ptr );
 ]]]
 
-uFFI supports pointer arguments by using the same pointer notation for function bindings than the one in the syntax of C.
-Again copy-pasting the function declaration is enough to create a binding to such a function.
+As you might expect by now, uFFI supports pointer arguments by copying the C syntax for pointers to use as its notation in function bindings.  And as expected, copy-pasting a C function declaration is usually enough to create bindings to such functions\:
 
 [[[language=smalltalk
 FFITutorial class >> free: ptr [
-	^ self ffiCall: #( void free(void *ptr) ) module: LibC
+	^ self ffiCall: #( void free( void *ptr ) ) module: LibC
 ]
 ]]]
 
-Pointer arguments accept ==ExternalAddress== objects.
-We have seen in the previous section how functions returning pointers provide us with such ==ExternalAddress==.
-We are now able to allocate memory using the ==malloc()== binding, and give it back to the system by using the ==free()== binding, as it is shown in the following example.
-**Warning:** remember to be careful when manipulating memory, specially when accessing it and freeing it. A wrong memory manipulation can lead to a memory access error and cause your process to die.
+Naturally, pointer arguments accept ==ExternalAddress== objects. We have seen in the previous section that functions returning pointers provide us with such ==ExternalAddress==es.
+So we are now able to allocate memory using a ==malloc()== binding and give that memory back to the system using a ==free()== binding, as shown in this example\:
 
 [[[language=smalltalk
 anExternalAddress := FFITutorial malloc: 200.
+
 FFITutorial free: anExternalAddress.
 ]]]
 
-!!!! Optional arguments, NULL pointers and ==nil==
+""Warning:"" Always be careful when manipulating memory, especially when accessing it and freeing it.  For each ==malloc()== that allocates memory, you must eventually call a corresponding ==free()== to release it back to the system. Improper memory manipulation can lead to memory access errors and could cause your process to die (or your system to crash).
 
-In general when using uFFI, we will not need to craft any pointers manually other than ''NULL'' pointers
-These ''NULL'' pointers are created with the following expression:
+!!!! Optional arguments, ==NULL== pointers, and ==nil==
+
+In general when using uFFI, we will not need to craft any pointers manually, other than ==NULL== pointers.
+==NULL== pointers (which are interchangeable) can be easily created with the following expression\:
 
 [[[language=smalltalk
 ExternalAddress null
   => @ 16r00000000
 ]]]
 
-''NULL'' pointers are useful because they are used in many libraries to have optional arguments.
-For example, in the family of ==malloc()==, the function ==realloc()== will receive two arguments: a pointer to a region of memory and a size.
-This function tries to enlarge the allocated region of memory to the requested size and returns the same pointer.
-However, if a ''NULL'' pointer is provided as argument, ==realloc()== works just as ==malloc()== and just allocates a new region of memory.
-The declaration of ==realloc()== looks a follows:
+==NULL== pointers are useful because they are used in many libraries that have optional arguments.
+For example, in the family of memory allocation functions, the function ==realloc()== takes two arguments: a pointer to a region of memory and a size.
+This function tries to enlarge the allocated region of memory to the requested size and returns the same pointer when successful.
+However, if a ==NULL== pointer is provided as argument, ==realloc()== operates instead like ==malloc()== and just allocates a new region of memory.
+
+The declaration of ==realloc()== looks like this\:
 
 [[[language=c
-void *realloc(void *ptr, size_t size);
+void *realloc( void *ptr, size_t size );
 ]]]
 
-And a uFFI binding to this function looks like: 
+And the uFFI binding to this function might look like\:
 
 [[[language=smalltalk
 FFITutorial class >> realloc: aPointer toSize: aSize [
@@ -449,15 +458,15 @@ FFITutorial class >> realloc: aPointer toSize: aSize [
 ]
 ]]]
 
-We can use our binding now by providing a ''NULL'' ==ExternalAddress== as first argument:
+As noted above, we can use this binding for buffer allocation by providing a ==NULL== ==ExternalAddress== as its first argument\:
 
 [[[language=smalltalk
 FFITutorial realloc: ExternalAddress null toSize: 200.
  => (void*)@ 16r7FFBDE0DE030
 ]]]
 
-Finally, uFFI type marshalling allows us to use ==nil== as argument too: when it comes to pointers, ==nil== is marshalled to a ''NULL'' pointer.
-Thus we can rewrite our previous example as follows:
+Finally, uFFI type marshalling allows us to use ==nil== for arguments, too.  When a pointer is expected, ==nil== will be demarshalled to a ==NULL== pointer.
+Thus we could write our previous example in this way, too\:
 
 [[[language=smalltalk
 FFITutorial realloc: nil toSize: 200.
