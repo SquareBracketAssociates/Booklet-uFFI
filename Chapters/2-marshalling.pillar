@@ -1,4 +1,4 @@
-!! Marshalling and Function Arguments
+!! Marshalling, Types and Function Arguments
 
 In the last chapter we looked at the basics of FFI call\-outs to define a Pharo uFFI binding to a C function.
 These first examples introduced the concepts of function lookup, library references, and marshalling of return values.
@@ -143,7 +143,7 @@ FFITutorial abs: SmallInteger maxVal * Float pi.
 
 returns a Pharo ==LargeNegativeInteger==, since the binary return value, 2^31, will not fit in a Pharo ==SmallInteger==.  It requires ''32'' bits, so uFFI selects the object type it ''will'' fit in, which is a ==LargeNegativeInteger== object.
 
-!!!! Marshalling of Incorrectly Declared Types
+!!!! Marshalling with Incorrectly Declared Types
 
 The marshalling rules we have seen above show that the way in which we specify function types is ''crucial'' to the correct behavior of our bindings, and thus our applications.
 In other words, call\-out bindings require that C types are correctly specified, otherwise run\-time errors \-\- or even worse, viable but incorrect value transformations \-\- may happen.
@@ -423,7 +423,8 @@ FFITutorial free: anExternalAddress.
 
 !!!! Optional arguments, NULL pointers and ==nil==
 
-In general when using uFFI, we will not need to craft any pointers manually other than ''NULL'' pointers
+In general when using uFFI, we will generally not need to craft any pointers manually.
+The only case for manually generating a pointer are ''NULL'' pointers, because they are typically used ''NULL'' by external libraries as optional arguments.
 These ''NULL'' pointers are created with the following expression:
 
 [[[language=smalltalk
@@ -431,7 +432,6 @@ ExternalAddress null
   => @ 16r00000000
 ]]]
 
-''NULL'' pointers are useful because they are used in many libraries to have optional arguments.
 For example, in the family of ==malloc()==, the function ==realloc()== will receive two arguments: a pointer to a region of memory and a size.
 This function tries to enlarge the allocated region of memory to the requested size and returns the same pointer.
 However, if a ''NULL'' pointer is provided as argument, ==realloc()== works just as ==malloc()== and just allocates a new region of memory.
@@ -465,6 +465,119 @@ FFITutorial realloc: nil toSize: 200.
 ]]]
 
 
-!!! Summary of Type Marshalling Rules
+!!! Type Marshalling Rules for Basic Objects
+
+All Pharo basic objects (integer, floats, strings, booleans, characters) are represented in memory differently in Pharo than in C, thus requiring special marshalling for each of them.
+Moreover, not all values in one language are seamlessly representable in the other.
+For example, while integers in Pharo can have arbitrary precision and will be enlarged on demand, integers in C do overflow and will be simply truncated.
+In this subsection we go over all pharo basic types and we explore all these rough corners the FFI developer should be aware of.
+
+!!!! Integers
+
+Integer types in C such as ==short==, ==int==, their long and unsigned versions, have fixed size.
+For example, ==int=='s are 32 bits long in 32bit machines and 64 bits long in 64bit machines.
+This means that values that cannot be represented in that size will be truncated to fit.
+To illustrate the behaviour, consider the following two C functions: they initialize an integer value with the maximum possible value they can store, and then add one to it.
+
+[[[language=c
+void overflowing_int(){
+  int input=INT_MAX;
+  printf("Overflowing int: %d + 1 = %d\n", input, input + 1);
+}
+
+void overflowing_uint(){
+  unsigned int input=UINT_MAX;
+  printf("Overflowing unsigned int: %u + 1 = %u\n", input, input + 1);
+}
+]]]
+
+Which yield for example:
+
+[[[
+Overflowing int: 2147483647 + 1 = -2147483648
+Overflowing unsigned int: 4294967295 + 1 = 0
+]]]
+
+We observe that the results of executing such functions are (when overflows are admitted/defined behaviour by the compiler) mathematically incorrect.
+To explain it briefly, such behavior is due to the fact that C integers (and other numeric types) do not entirely follow mathematical semantics, but are instead tightly coupled to the semantics and limitations of the underlying machine and processor.
+We will refrain ourselves from further discussing the semantics of C, since they are outside the scope of this booklet, and they may vary depending on the C standard and compiler used.
+
+On the other hand, integer values in Pharo have variable size.
+Indeed, Pharo integers storage size is dynamically decided to fit the stored value.
+For example, the following piece of code shows how we can obtain the maximum ==SmallInteger== value, and that adding one to it yields a ==LargePositiveInteger==.
+The former class is used to represent integers that fit integers up to a fixed size (of 31 bits in 32bit machines and 61 bits in 64bit machines), while the latter is used to represent integers that require more storage.
+
+[[[language=smalltalk
+(SmallInteger maxVal + 1) class
+ => LargePositiveInteger
+]]]
+
+While uFFI value marshalling takes care of most conversions (e.g., representation differences, two-complements...), the uFFI user still has to be careful when exchanging integers between Pharo and a C library. This mostly boils down to:
+- the integer return type and the integer types of the arguments defined in the uFFI callout should correspond to the actual types in the library. E.g., mistaking a ==long== by an ==int==, or wrongly defining a signed int as not signed will make uFFI interpret such values wrongly.
+- Pharo integer values used as arguments should fit in the target argument type. Otherwise such value will be truncated.
+
+!!!! Booleans
+
+!!!! Characters
+
+!!!! Floating Point Numbers
+
+Floating point numeric types in C such as ==float== and ==double== are also restricted by the limitations of the underlying hardware.
+Since the hardware is not infinite, floating point numbers cannot be represented with infinite precision, being in fact the opposite: floating point numbers see their precision limited.
+The C type ==float== is a precision floating point number, while ==double== is a double precision floating point number.
+The following example C code illustrates how precision is lost: it first stores a floating point number in variables of type ==float== and ==double==, it then prints it using the ==printf== function and requiring a precision of 18 digits after the decimal dot.
+
+[[[language=c
+void printFloatingPointNumbers(){
+  //Both floating point numbers should have the same value
+  float x = 3.141592653589793238;
+  double y = 3.141592653589793238;
+  
+  printf("Float is: %20.18f\n", x);
+  printf("Double is: %20.18f\n", y);
+}
+]]]
+
+The example above prints the following in the standard output.
+Although we asked for a precision of 18 digits, and 18 digits were printed to the stdout, not all of those 18 digits correspond to the original digits specified in our code.
+Moreover, we see that using a single precision type loses precision before than the one using double precision.
+
+[[[
+Float is: 3.141592741012573242
+Double is: 3.141592653589793116
+]]]
+
+Pharo floating point numbers are double precision floating point numbers as explained above.
+uFFI marshalling will then take care of the following conversions:
+- If a Pharo float is sent as a ==double== argument, the Pharo double precision floating point number will be copied as is.
+- If a Pharo float is sent as a ==float== argument, Pharo float will be previously converted to a single precision float before.
+- C floats returned by functions will be transformed to double precision Pharo floats. If the function return type is ==float== it will then add ""noisy"" digits to complete its decimal representation.
+
+!!!! Strings
 
 !!! Conclusion
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
