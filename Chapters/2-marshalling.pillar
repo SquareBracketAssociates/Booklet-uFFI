@@ -551,6 +551,28 @@ uFFI marshalling will then take care of the following conversions:
 
 !!!! Characters
 
+Characters in C are represented using the ==char== type which is, although unintuive, a numeric type and not a textual type.
+This means that a ==char== value does not actually represent a character, but some bytes encoding a character.
+And the actual character value of those bytes depend on how those bytes are actually interpreted.
+
+The reason for this is that the C programming language predates the nowadays broadly-used text encoding standards such as Unicode and its encoding formats such as utf-8 and utf-32.
+Historically, the ==char== type stores 1 byte values, and is used to store ascii character values.
+However, the ascii encoding is not sufficient to represent many languages which have more characters than can possibly fit in a single byte.
+
+On the other hand, Pharo represents characters with their unicode code point, i.e., a unique identifier assigned to each character by the unicode standard.
+Unicode codepoints are integer numbers that may not fit the typical single byte of the C ==char== type.
+
+The uFFI marshalling rules of characters is as follows:
+- A Pharo character sent as argument have their code point truncated and copied to the function argument.
+- A ==char== return value is interpreted as a codepoint, and a Pharo Character with such codepoint is returned.
+
+However, care is needed with these conversions because the ==char== type is actually a numeric type, and it mismatches with the unicode codepoints within Pharo.
+This turns the manipulation of character values into a potential source of bugs.
+We recommend the FFI developer to carefully study how ==char== types are used in the used library.
+Several C libraries will interpret ==char== values as ascii values, but unicode code points only match ascii values up to 127.
+For example, while in ascii the euro character (€) is represented with the 0x80 value, its unicode code point is 0x20AC.
+Other libraries will use ==char== values to represent raw bytes encoding characters in one of its encodings such as utf-8.
+
 !!!! Booleans
 
 Since the C99 standard, C includes support for booleans with the ==bool== type, and its ==true== and ==false== values defined in the ==stdbool.h== header.
