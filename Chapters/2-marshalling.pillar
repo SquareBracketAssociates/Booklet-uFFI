@@ -592,27 +592,14 @@ FFITutorial class >> printBoolean: b [
 
 !!! Conclusion
 
+In this chapter we have studied the basics of uFFI call\-out arguments and their marshalling.
+The arguments of a function can be the the arguments of the method they are declared in, an instance variable, a class variable, self, or a literal Pharo object.
+Arguments should declare a type, so uFFI knows how to transform that object to a C equivalent.
+Failing in correctly declaring the type can lead to misbehaviours in an application due to incorrect transformations.
 
+Basic types covered by uFFI include integer values, floating point values, booleans, characters and pointers.
+Pointers are used through the special FFI class ==ExternalAddress==, and its special value ''NULL'' can be acquired with the ==null== class side message.
+Finally other basic types have special marshalling rules that apply when transforming Pharo values to C values.
+In particular we have seen that integers suffer from truncations and overflows in C, floating point numbers suffer from lose of precision, and characters in Pharo are interpreted as unicode code points while each C library can interpret characters as they please.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+The next chapter explores other data types that can be built from these basic data types: arrays, structures, enumerations and opaque objects.
