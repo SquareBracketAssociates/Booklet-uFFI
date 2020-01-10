@@ -516,10 +516,6 @@ While uFFI value marshalling takes care of most conversions (e.g., representatio
 - the integer return type and the integer types of the arguments defined in the uFFI callout should correspond to the actual types in the library. E.g., mistaking a ==long== by an ==int==, or wrongly defining a signed int as not signed will make uFFI interpret such values wrongly.
 - Pharo integer values used as arguments should fit in the target argument type. Otherwise such value will be truncated.
 
-!!!! Booleans
-
-!!!! Characters
-
 !!!! Floating Point Numbers
 
 Floating point numeric types in C such as ==float== and ==double== are also restricted by the limitations of the underlying hardware.
@@ -553,7 +549,24 @@ uFFI marshalling will then take care of the following conversions:
 - If a Pharo float is sent as a ==float== argument, Pharo float will be previously converted to a single precision float before.
 - C floats returned by functions will be transformed to double precision Pharo floats. If the function return type is ==float== it will then add ""noisy"" digits to complete its decimal representation.
 
-!!!! Strings
+!!!! Characters
+
+!!!! Booleans
+
+Since the C99 standard, C includes support for booleans with the ==bool== type, and its ==true== and ==false== values defined in the ==stdbool.h== header.
+Pharo booleans are transformed to C booleans seamlessly when using the ==bool== type in the FFI callout signature.
+
+[[[language=c
+void printBoolean(bool b){
+	printf("Boolean: %d\n", b);
+}
+]]]
+
+[[[language=smalltalk
+FFITutorial class >> printBoolean: b [
+	^ self ffiCall: #( void printBoolean ( bool b ) )
+]
+]]]
 
 !!! Conclusion
 
