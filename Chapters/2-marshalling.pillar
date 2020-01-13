@@ -30,7 +30,7 @@ FFITutorial class >> abs: n [
 ]]]
 
 Creating this binding does not really add extra complexity to what we did in our previous examples.
-We create a simple method that uses the ==ffiCall:== message, providing it an array argument enclosing a copy of the function\'s prototype, just as we did before.  (And as with our earlier ==FFITutorial== class methods, we\'re assuming the continued use of our ==ffiModuleName== override to eliminate the need to add the ==module:== keyword).
+We create a simple method that uses the ==ffiCall:== message, providing it an array argument enclosing a copy of the function\'s prototype, just as we did before.  (And as with our earlier ==FFITutorial== class methods, we\'re assuming the continued use of our ==ffiLibrary== override to eliminate the need to add the ==library:== keyword).
 
 The part that\'s new here is the introduction of the ==n== parameter and its C type, but no additional work is needed on our part to transform the Pharo object to a C value.  Also notice that uFFI knows to distinguish the argument\'s declared ''type'' from its formal parameter ''name'', while simultaneously matching up the name with our Pharo method\'s formal argument.
 
@@ -315,7 +315,7 @@ Indeed, objects can encapsulate the state required to perform the ffi calls and 
 
 [[[language=smalltalk
 MyClass >> doSomething [
-	^ self ffiCall: #( int myFunction ( int myInstanceVariable ) ) module: LibC
+	^ self ffiCall: #( int myFunction ( int myInstanceVariable ) ) library: LibC
 ]
 ]]]
 
@@ -330,7 +330,7 @@ To do this, we simply add an ==absoluteValue== method to ==SmallInteger== and di
 
 [[[language=smalltalk
 SmallInteger >> absoluteValue [
-	^ self ffiCall: #( int abs ( int self ) ) module: LibC
+	^ self ffiCall: #( int abs ( int self ) ) library: LibC
 ]
 ]]]
 
@@ -371,7 +371,7 @@ And we proceed to create a uFFI binding to it by copy-pasting the declaration as
 
 [[[language=smalltalk
 FFITutorial class >> malloc: aSize [
-	^ self ffiCall: #( void * malloc ( size_t aSize ) ) module: LibC
+	^ self ffiCall: #( void * malloc ( size_t aSize ) ) library: LibC
 ]
 ]]]
 
@@ -407,7 +407,7 @@ Again copy-pasting the function declaration is enough to create a binding to suc
 
 [[[language=smalltalk
 FFITutorial class >> free: ptr [
-	^ self ffiCall: #( void free(void *ptr) ) module: LibC
+	^ self ffiCall: #( void free(void *ptr) ) library: LibC
 ]
 ]]]
 
