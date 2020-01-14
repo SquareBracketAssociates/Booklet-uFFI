@@ -161,147 +161,136 @@ newArrayOf128Chars := char128Type externalNew.
 We will see in the next section how this array definition is useful to combine arrays inside structures.
 
 !!! Structures
-The ==FFIExternalStructure== object is used to manipulate C structures from Pharo.
-From the standard C library we can use the ==div()== function as an example.
-Given a numerator and denominator, it returns a structure holding the quotient and remainder. In stdlib.h we find these definitions:
 
-[[[
+A structure is a sequence of heterogeneous values hold in so-called fields.
+Structures group related values in a single entity so they can be manipulated together.
+For example, let's consider a structure that models a fraction, i.e., a number that has a numerator and a denominator.
+Such a fraction structure is be accompanied by the following functions and definition:
+
+[[[language=c
 typedef struct
 {
-	int quot;	/* Quotient.  */
-	int rem;	/* Remainder.  */
-} div_t;
+	int numerator;
+	int denominator;
+} fraction;
 
-div_t div (int __numer, int __denom)
-]]]
-
-Converting these to FFI definitions we get...
-[[[
-FFIExternalStructure subclass: #Div_t
-	instanceVariableNames: ''
-	classVariableNames: ''
-	package: 'UnifiedFFI-ExampleLibC'
-]]]
-
-
-[[[
-Div_t class >> fieldsDesc [
-	"self rebuildFieldAccessors"
-	^ #(
-		int quot;
-		int rem;
-		)
-]
-]]]
-
-[[[
-LibC class >> div_numer: numer denom: denom [
-	^ self ffiCall: #( Div_t div( int numer, int denom ) ) module: LibC
-]
-]]]
-
-So lets try it out.
-
-[[[
-LibC div_numer: 7 denom: 2 
-	"Div_t ( quot: 3	rem: 1)"
-]]]
- 
-Now for another example, imagine you need to manipulate the following C structure from Pharo:
-
-[[[
-struct My_Structure {
-	uint8 id;
-	char * name;
-	uint name_length;
+double fraction_to_double(fraction* a_fraction){
+  return a_fraction -> numerator / (double)(a_fraction -> denominator);
 }
 ]]]
 
-The first step is to create a subclass of ==FFIExternalStructure== that we name ==MyStructure==:
+!!!! Defining a structure with ==FFIStructure==
 
-[[[
-FFIExternalStructure subclass: #MyStructure
+Structures are declared in uFFI as subclasses of ==FFIStructure== class defining the same fields as defined in C.
+For example, defining our fraction structure is done as follows, defining a subclass of ==FFIStructure==, a ==fieldsDesc== class-side method returning the specification of the structure fields, and finally sending the ==rebuildFieldAccessors== message to the structure class we created.
+
+[[[language=smalltalk
+FFIExternalStructure subclass: #FractionStructure
 	instanceVariableNames: ''
 	classVariableNames: ''
-	package: 'FFIDemo'
-]]]
+	package: 'FFITutorial'
 
-Then, we need to describe the structure. This is done by overriding the ==FFIExternalStructure class >> #fieldsDesc== method.
-The syntax used to do it is pretty close to the C syntax:
-
-[[[
-MyStructure class >> #fieldsDesc [
+FractionStructure class >> fieldsDesc [
 	^ #(
-	uint8 id;
-	char * struct_name;
-	uint name_length;
-	)
+		int numerator;
+		int denominator;
+		)
+]
+
+FractionStructure rebuildFieldAccessors.
+]]]
+
+Doing this will automatically generate some boilerplate code to manipulate the structure.
+You will see that the structure class gets redefined as follows, containing some auto-generated accessors.
+
+[[[language=smalltalk
+FFIExternalStructure subclass: #FractionStructure
+	instanceVariableNames: ''
+	classVariableNames: 'OFFSET_DENOMINATOR OFFSET_NUMERATOR'
+	package: 'UnifiedFFI-ExampleLibC'
+
+FractionStructure >> denominator [
+	"This method was automatically generated"
+	^handle signedLongAt: OFFSET_DENOMINATOR
+]
+
+FractionStructure >> denominator: anObject [
+	"This method was automatically generated"
+	handle signedLongAt: OFFSET_DENOMINATOR put: anObject
+]
+
+FractionStructure >> numerator [
+	"This method was automatically generated"
+	^handle signedLongAt: OFFSET_NUMERATOR
+]
+
+FractionStructure >> numerator: anObject [
+	"This method was automatically generated"
+	handle signedLongAt: OFFSET_NUMERATOR put: anObject
 ]
 ]]]
 
-Once the structure is described, you can generate the accessors by evaluating ==MyStructure rebuildFieldAccessors==.
-This will generate accessors and mutators on instance side of ==MyStructure==.
+Once a structure type is defined, we can allocate structures from it using the ==new== and ==externalNew== messages, that will allocate it in the Pharo heap or the external C heap respectively.
 
-Now we are going to make the use of this structure a bit easier. As you saw before, the structure holds a char pointer
-to represent its name (as a ==String==) and it also holds the length of this ==String== in ==name_length== field.
+[[[language=smalltalk
+"In Pharo heap"
+aFraction := FractionStructure new.
 
-Right now, you can use the structure like this:
-[[[
-myStruct := MyStructure externalNew. "Use #externalNew to create the object on the external heap."
-
-"Create an external array of type char to hold the name."
-newName := FFIExternalArray externalNewType: 'char' size: 3.
-'foo' doWithIndex: [ :char :i |
-	newName at: i put: char ].
-
-"Set the name."
-myStruct struct_name: newName.
-myStruct name_length: newName size.
-
-"Get the name."
-structName := String
-	newFrom: (FFIExternalArray
-				fromHandle: myStruct struct_name getHandle type: 'char' size: myStruct name_length)
+"In C heap"
+aFraction := FractionStructure externalNew.
 ]]]
 
-So to get the actual string, you need to take the char pointer and read ==name_length== char. We are going to wrap this
-procedure in a new method:
+We read or write in our structure using the auto-generated accessors.
 
-[[[
-MyStructure >> #structName [
-	^ String
-		newFrom: (FFIExternalArray
-					fromHandle: self struct_name getHandle type: 'char' size: self name_length)
+[[[language=smalltalk
+aFraction numerator: 40.
+aFraction denominator: 7.
+]]]
+
+And we can use it as an argument in a call\-out by using its type.
+
+[[[language=smalltalk
+FFITutorial >> fractionToDouble: aFraction [
+  ^ self ffiCall: #(double fraction_to_double(FractionStructure* a_fraction){ )
 ]
+
+FFITutorial new fractionToDouble: aFraction.
+>>> 5.714285714285714
 ]]]
 
-We want the same thing for the mutator. We do not want to matter with ==name_length== when setting ==struct_name==:
+!!!! Structures embedding arrays
 
-[[[
-MyStructure >> #structName: aString [
-	| externalArray |
-	externalArray := FFIExternalArray externalNewType: 'char' size: aString size.
-	aString doWithIndex: [ :char :i |
-		externalArray at: i put: char ].
-	self struct_name: externalArray.
-	self name_length: aString size.
+Arrays in C can appear embedded in structures defined as follows, where a structure contains an array of four ints.
+
+[[[language=c
+struct {
+	int some_array[4];
+}
+]]]
+
+Constrastingly with a struct containing **a pointer** to an array, the structs created from the definition above will contain the entire array allocated within the struct. Choosing between a struct that embeds an array or one that references an array through a pointer is a responsibility of the author of the C library we are binding, and it is outside the scope of the booklet. However, different structures are defined differently in uFFI. 
+
+Defining the structure above in uFFI requires that we define an array type of size 4 for our ==some_array== field.
+We can define such user defined type as a type alias in our class-side, import our type pool in our structure class and then use our type in our field definitions.
+
+[[[language=smalltalk
+FFITutorialTypes class >> initialize [
+  int4array := FFIArray newArrayType: #int size: 4.
 ]
-]]]
+  
+FFIExternalStructure subclass: #EmbeddingArrayStructure
+  instanceVariableNames: ''
+  classVariableNames: ''
+  poolDictionaries: 'FFITutorialTypes'
+  package: 'FFITutorial'
+  
+EmbeddingArrayStructure class >> fieldsDesc [
+  ^ #(
+  int4array some_array;
+  )
+]
 
-With the two preceding methods added, you can use ==MyStructure== the same way you use any other Pharo object:
-
-[[[
-"Of course you still need to use #externalNew!"
-myStruct := MyStructure externalNew 
-	structName: 'foo';
-	id: 42;
-	yourself.
-
-myStruct structName. "foo"
-myStruct id. "42"
-
-myStruct structName: 'bar'.
-myStruct structName. "bar"
+EmbeddingArrayStructure rebuildFieldAccessors.
 ]]]
 
 !!! External objects
