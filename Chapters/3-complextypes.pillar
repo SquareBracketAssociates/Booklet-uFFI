@@ -162,10 +162,11 @@ We will see in the next section how this array definition is useful to combine a
 
 !!! Structures
 
-A structure is a sequence of heterogeneous values hold in so-called fields.
-Structures group related values in a single entity so they can be manipulated together.
-For example, let's consider a structure that models a fraction, i.e., a number that has a numerator and a denominator.
-Such a fraction structure is be accompanied by the following functions and definition:
+A structure is data-type that joins together a group of variables, so-called fields.
+Each field of a structure has a name and a type.
+Structures are often used to group related values, so they can be manipulated together.
+For example, let's consider a structure that models a fraction, i.e., a number that has a numerator and a denominator. Both numerator and denominator can be defined as fields of type ==int==.
+Such fraction structure data-type, and a function calculating a double precision floting point number from it, are defined in C as follows:
 
 [[[language=c
 typedef struct
@@ -181,11 +182,11 @@ double fraction_to_double(fraction* a_fraction){
 
 !!!! Defining a structure with ==FFIStructure==
 
-Structures are declared in uFFI as subclasses of ==FFIStructure== class defining the same fields as defined in C.
+Structures are declared in uFFI as subclasses of the ==FFIStructure== class defining the same fields as defined in C.
 For example, defining our fraction structure is done as follows, defining a subclass of ==FFIStructure==, a ==fieldsDesc== class-side method returning the specification of the structure fields, and finally sending the ==rebuildFieldAccessors== message to the structure class we created.
 
 [[[language=smalltalk
-FFIExternalStructure subclass: #FractionStructure
+FFIStructure subclass: #FractionStructure
 	instanceVariableNames: ''
 	classVariableNames: ''
 	package: 'FFITutorial'
@@ -204,10 +205,10 @@ Doing this will automatically generate some boilerplate code to manipulate the s
 You will see that the structure class gets redefined as follows, containing some auto-generated accessors.
 
 [[[language=smalltalk
-FFIExternalStructure subclass: #FractionStructure
+FFIStructure subclass: #FractionStructure
 	instanceVariableNames: ''
 	classVariableNames: 'OFFSET_DENOMINATOR OFFSET_NUMERATOR'
-	package: 'UnifiedFFI-ExampleLibC'
+	package: 'FFITutorial'
 
 FractionStructure >> denominator [
 	"This method was automatically generated"
@@ -278,7 +279,7 @@ FFITutorialTypes class >> initialize [
   int4array := FFIArray newArrayType: #int size: 4.
 ]
   
-FFIExternalStructure subclass: #EmbeddingArrayStructure
+FFIStructure subclass: #EmbeddingArrayStructure
   instanceVariableNames: ''
   classVariableNames: ''
   poolDictionaries: 'FFITutorialTypes'
@@ -291,6 +292,106 @@ EmbeddingArrayStructure class >> fieldsDesc [
 ]
 
 EmbeddingArrayStructure rebuildFieldAccessors.
+]]]
+
+!!! Enumerations
+
+Enumerations are data-types defining a finite set of named values.
+For example, let's consider we want to create a data-type to identify the different positions of players inside a football match: goalkeeper, defender, midfielder, forward. Such data-type can be defined in C as an enumeration as follows:
+
+[[[language=c
+typedef enum {
+  goalkeeper,
+  defender,
+  midfielder,
+  forward
+} position;
+]]]
+
+We can then use ==position== as a type, and the values defined within it as valid values for ==position==.
+
+
+[[[language=c
+position myPosition = defender;
+]]]
+
+!!!! The values of C enumerations
+
+To better understand how to map C enumerations using uFFI, we must before understand how C assigns value to each of the elements in the enumeration.
+Internally, C assigns to each of the elements of the enumeration a sequencial numeric value starting from 0 (zero).
+In other words, ==goalkeeper== has a value of 0, ==defender== has a value of 1, and so on.
+C allows developers to specify the values they want too, using an assignment-like syntax.
+
+[[[language=c
+typedef enum {
+  goalkeeper = 42,
+  defender,
+  midfielder,
+  forward
+} position;
+]]]
+
+We can explicitly assign values to any of the elements of the enumeration.
+We may leave values without explicit values, in which case they will be automatically assigned a value following its previous value. And finally, many elements in the enumeration may have the same value.
+The example enumeration below shows these subtleties.
+
+[[[language=c
+#include <assert.h>
+#include <limits.h>
+
+enum example {
+    example0,            /* will have value 0 */
+    example1,            /* will have value 1 */
+    example2 = 3,        /* will have value 3 */
+    example3 = 3,        /* will have value 3 */
+    example4,            /* will have value 4 */
+    example5 = INT_MAX,  /* will have value INT_MAX */
+    /* Defining a new value after this one will cause an overflow error */
+};
+]]]
+
+!!!! Defining an enumeration using ==FFIEnumeration==
+
+Enumerations are declared in uFFI as subclasses of the ==FFIEnumeration== class defining the same elements as defined in C, and with their same values.
+For example, defining our example enumeration is done as follows, defining a subclass of ==FFIEnumeration==, a ==enumDecl== class-side method returning the specification of the enumeration elements, and finally sending the ==initialize== message to the enumeration class we created.
+
+[[[language=smalltalk
+FFIEnumeration subclass: #ExampleEnumeration
+  instanceVariableNames: ''
+  classVariableNames: ''
+  package: 'FFITutorial'
+
+ExampleEnumeration class >> enumDecl [
+	^ #(
+    example0 0
+    example1 1
+    example2 3
+    example3 3
+    example4 4
+    example5 2147483647
+		)
+]
+
+ExampleEnumeration initialize.
+]]]
+
+Doing this will automatically generate some boilerplate code to manipulate the enumeration.
+You will see that the enumeration class gets redefined as follows creating and initializing a class variable for each of its elements.
+
+[[[language=smalltalk
+FFIEnumeration subclass: #ExampleEnumeration
+  instanceVariableNames: ''
+  classVariableNames: 'example0 example1 example2 example3 example4 example5'
+  package: 'FFITutorial'
+]]]
+
+To use the values of enumerations in our code, it is enough to import it as a pool dictionary, since uFFI enumerations are shared pools.
+
+[[[language=smalltalk
+Object subclass: #FFITutorial
+  ...
+  poolDictionaries: 'ExampleEnumeration'
+  ...
 ]]]
 
 !!! External objects
