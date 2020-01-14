@@ -1,58 +1,164 @@
-!!! External address
+!! Complex Types
 
-External addresses (contained in the class ==ExternalAddress==) is the way we represent any kind of data ''outside''
-Smalltalk. That means data (pointers, structures, arrays) who are allocated in the heap.
+We have seen in the last two chapters that types are a big deal in FFI call\-outs, since they govern how values are marshalled between C and Pharo.
+The previous chapter explored the marshalling rules of basic types such as integers, floating point numbers, booleans and characters.
+But in addition to these basic types, existing libraries may make use of more complex data-types, i.e., data-types that are built from simpler data-types.
+This chapter builds on top of the knowledge of previous chapters to introduce these more complex types.
 
-An ==ExternalAddress== can be:
+On the one hand, uFFI provides support to map C complex data-types,such as arrays and structures.
+Arrays represent a bound sequence of values of a single data-type, e.g., a sequence of 10 integers.
+Structures represent a collection of values of heterogeneous data-types, e.g., a group of an integer and a two booleans.
 
-- an allocation of memory (you can use ==ExternalAddress class >> allocate:== or ==ExternalAddress class >> gcallocate:==). Note that in case of ==#allocate:== you will need to ==#free== the external address later (==#gcallocate:== does that work for you).
-- the result of a function call (usually it will come as part of an ==ExternalData==)
+In addition, uFFI allows developers to define their own user-defined data-types in Pharo.
+User-defined data-types range from simple type aliases, to user-defined classes wrapping external C values.
 
-==ExternalData== represents an ==ExternalAddress== with an C type associated. For example,
+!!! Defining Type Aliases
 
-Both ==ExternalAddress== and ==ExternalData== can be used as arguments when declaring functions with pointers as parameters,
-for example:
+A type alias is a user-defined alternative name for a type, which are useful in many different scenarios.
+As one example, type aliases are useful to improve code readability, by creating domain specific types, e.g., ==age== => ==unsigned int==.
+As another example, external libraries can come with their own user-defined and types and aliases, so having the same aliases in our FFI bindings can simplify writing those bindings.
 
-[[[
-LibC >> memCopy: src to: dest size: n [
-	^ self ffiCall: #(void *memcpy(void *dest, const void *src, size_t n)
+!!!! A first type alias
+
+In uFFI, type aliases are created with class variables: the class variable name is the alias name, while its value is the aliased type.
+For example, we define our ==age== => ==unsigned int== alias as follows in our ==FFITutorial== class, and then execute the initialize method to make it run.
+
+[[[language=smalltalk
+Object subclass: #FFITutorial
+  instanceVariableNames: ''
+  classVariableNames: 'Age'
+	package: 'FFITutorial'
+  
+FFITutorial class >> initialize
+  Age := #uint
+]]]
+
+Once our type alias is defined, and the class side ==initialize== executed, we can use that type alias anywhere in our bindings in that hierarchy below ==FFITutorial==. For example, we can define our ==abs()== binding as follows.
+
+[[[language=smalltalk
+FFITutorial class >> abs: n [
+	^ self ffiCall: #( Age abs ( Age n ) )
 ]
 ]]]
 
-!!! External objects
+!!!! Valid values for type aliases
 
-==FFIExternalObject== represents an object in the heap. An external object is a reference to any kind of data allocated in the heap mapped to a Smalltalk object.
+As we have seen above, uFFI type aliases are defined by normal assignments to class variables:
 
-This is confusing, so I will try to explain it better: When you allocate a region of memory in the heap, you get a pointer to that location, which does not represent anything. But often, frameworks will allocate structures, pointers, etc. which actually represents "an object" (not in the same sense as a Smalltalk object, but can be interpreted like one). For example,
-to create a cairo surface, you can call this:
-
-[[[
-AthensCairoSurface class >> primImage: aFormat width: aWidth height: aHeight [
-	^ self ffiCall: #(AthensCairoSurface * cairo_image_surface_create ( int aFormat,
-	int aWidth, int aHeight) )
-]
+[[[language=smalltalk
+Age := #uint
 ]]]
 
-This will call the cairo function ==cairo_image_surface_create== but instead answer an ==ExternalAddress== it will create an
-instance of ==AthensCairoSurface==, so you can treat the allocated pointer as an object.
+uFFI type alias names, on the left of the assignment, can have any name accepted as a class variable name.
+Although other names are be accepted by Pharo class definitions, the convention tells class variables should be capitalized.
+The value of a type alias, on the right of the assignment, could be either:
+- a symbol with a type identifier to be resolved by uFFI, e.g., ==#'int'==, a shown above or;
+- an already resolved type object, which we will study in subsequent sections
 
-Any class in the system can be an external object as long as either:
-- it inherits from ==FFIExternalObject==; or
-- it implements in its ""class side"" the method ==asExternalTypeOn:==.
+Before executing a call\-out, uFFI verifies all types used in the call\-out can be resolved to valid types, and will throw an exception if an error occurs while resolving it.
 
-You can check for implementors of ==asExternalTypeOn:== for examples, but they usually looks like this one:
+!!!! Sharing type aliases with shared pools
 
-[[[
-AthensCairoCanvas class >> asExternalTypeOn: generator [
-	"use handle ivar to hold my instance (cairo_t)"
-	^ FFIExternalObjectType objectClass: self
-]
+uFFI does not enforce how bindings should be structured by a developer.
+A developer could choose to put all bindings in a single class, or, he could organize them in several classes even amongst several packages. Regardless of how the code is structured, it is most of the times useful to have user-defined type aliases available in all classes using the bindings. For this purpose, uFFI supports structuring type aliases in shared pools.
+
+A typical usage of shared pools to define uFFI types is to define a ==MyLibraryTypes== shared pool as follows, as we did before to define constants:
+[[[language=smalltalk
+Object subclass: #FFITutorialTypes
+  instanceVariableNames: ''
+  classVariableNames: 'Age'
+	package: 'FFITutorial'
+  
+FFITutorialTypes class >> initialize
+  Age := #uint
 ]]]
 
-@@note if you want to add the resource to an automatic free mechanism (to make GC frees also the external object), you need
-to call ==autoRelease== (in case of children from FFIExternalObject) or implement similar mechanism.
+We can then import the type aliases in the shared pool by 
 
-@@note FFIExternalObject replaces NBExternalObject
+[[[language=smalltalk
+Object subclass: #FFITutorial
+  ...
+  poolDictionaries: 'FFITutorialTypes'
+  ...
+]]]
+
+!!! Arrays
+
+Arrays are a bound sequence of contiguous values.
+In Pharo, an array object can contain any object, and specially, a single array can contain objects of different types.
+For example, the following code snippet shows how a single array can contain integers, floats, strings and others.
+
+[[[language=smalltalk
+anArray := Array new: 7.
+anArray at: 1 put: 3.1415.
+anArray at: 5 put: 42.
+anArray at: 7 put: 'Hello World'.
+
+anArray.
+ => #(3.1415 nil nil nil 42 nil 'Hello World')
+]]]
+
+In addition, Pharo arrays can be safely accessed without producing buffer over/underflows, because it performs bound checks on each array access. In other words, accessing outside the bounds of a Pharo array yields an exception instead of accessing data ""outside"" the array.
+
+[[[language=smalltalk
+anArray := Array new: 1.
+
+anArray at: 2
+ => Out of Bounds Exception!
+]]]
+
+C arrays behave partially like Pharo arrays: they are contiguous sequences of values.
+However, C arrays are constrained to contain values of a single type, and accessing outside of their bounds is not checked before the access, producing buffer over/underflows.
+
+Because of these differences and differences in their internal representation, uFFI does not automatically marshall Pharo arrays into C arrays. Instead, uFFI provides a specialized array class to manipulate arrays: the ==FFIArray== class.
+
+!!!! Creating instances
+
+==FFIArray==s are created using the ==newType:size:== or the  ==externalNewType:size:== instance creation methods. The former will allocate an array in the Pharo heap, while the latter one will allocate the array in the C heap.
+
+[[[language=smalltalk
+"In the pharo heap"
+array := FFIArray newType: #char size: 10.
+
+"In the C heap"
+array := FFIArray externalNewType: #char size: 10.
+]]]
+
+==FFIArray==s allocated in the C heap are not moved and their memory is not released automatically.
+It is the developer's responsibility to free it.
+On the other hand, ==FFIArray==s allocated in the Pharo heap can be moved by the garbage collector, so they should be pinned in memory before being safely used in FFI calls.
+Also, ==FFIArray==s in the Pharo heap are managed by Pharo's garbage collector, and will be collected if no other Pharo objects reference it. Be careful, an ==FFIArray== in the Pharo heap referenced from the C heap will still be garbage collected making the pointer in the C heap a dangling pointer.
+
+!!!! Accessing my instances
+
+The elements in an ==FFIArray== are accessed as any other Pharo array, using the ==#at:== and ==#at:put:== methods.
+Its size is accessed with the ==#size== method, using 1-based indexes like in Pharo.
+
+[[[language=smalltalk
+array at: 1 "for the first element".
+array at: n "for the nth element".
+]]]
+
+If the array is allocated in the Pharo heap, array accesses will be bound checked and throw an exception in case of out-of-bounds access. Otherwise, if the array is allocated in the C heap, array accesses may run into buffer over/underflows.
+
+!!!! Reusable Array types
+
+From time to time, we need to create several array instances of the same type and size.
+Besides instantiating single arrays, ==FFIArray== can define array types, using the ==newArrayType:size:== method.
+An array type knows the types of its elements and its size and we can simply allocate it using the ==new== or ==externalNew== messages to allocate it in the Pharo heap or the C heap respectively.
+
+[[[language=smalltalk
+char128Type := FFIArray newArrayType: #char size: 128.
+
+"In Pharo heap"
+newArrayOf128Chars := char128Type new.
+
+"In C heap"
+newArrayOf128Chars := char128Type externalNew.
+]]]
+
+==FFIArray==s created this way can be used as any other ==FFIArray==.
+We will see in the next section how this array definition is useful to combine arrays inside structures.
 
 !!! Structures
 The ==FFIExternalStructure== object is used to manipulate C structures from Pharo.
@@ -198,81 +304,40 @@ myStruct structName: 'bar'.
 myStruct structName. "bar"
 ]]]
 
+!!! External objects
 
-!!! Arrays
-In Pharo, arrays can have any kind of objects inside, but that's not the case in C where each array can contain an unique type. 
+==FFIExternalObject== represents an object in the heap. An external object is a reference to any kind of data allocated in the heap mapped to a Smalltalk object.
 
-UnifiedFFI provides two ways to declare C arrays: ==FFIExternalArray== and ==FFIArrayType==. As their name suggest there are subtle difference 
-between them.
-
-- ==FFIExternalArray== can be used to instantiate external arrays of any type.
-- ==FFIArrayType== can be used to declare new types that are arrays (something like a C typedef declaration).
-
-!!!! FFIExternalArray
-An ==FFIExternalArray== is an easy way to pass arrays to functions, as you can see in this example :
+This is confusing, so I will try to explain it better: When you allocate a region of memory in the heap, you get a pointer to that location, which does not represent anything. But often, frameworks will allocate structures, pointers, etc. which actually represents "an object" (not in the same sense as a Smalltalk object, but can be interpreted like one). For example,
+to create a cairo surface, you can call this:
 
 [[[
-FFICallback class >> primQsort: array with: count with: size with: compare [
-	self
-		ffiCall: #(void qsort (FFIExternalArray array, size_t count, size_t size, FFICallback compare)) 
-		module: LibC
+AthensCairoSurface class >> primImage: aFormat width: aWidth height: aHeight [
+	^ self ffiCall: #(AthensCairoSurface * cairo_image_surface_create ( int aFormat,
+	int aWidth, int aHeight) )
 ]
 ]]]
 
-this declaration will receive an array of any kind and it will pass it to the ==qsort== function. This is possible because in C, an array 
-is not more than a reference checked by the compilator (which we are skipping). To ''use'' this function, we need to declare a type like this: 
+This will call the cairo function ==cairo_image_surface_create== but instead answer an ==ExternalAddress== it will create an
+instance of ==AthensCairoSurface==, so you can treat the allocated pointer as an object.
+
+Any class in the system can be an external object as long as either:
+- it inherits from ==FFIExternalObject==; or
+- it implements in its ""class side"" the method ==asExternalTypeOn:==.
+
+You can check for implementors of ==asExternalTypeOn:== for examples, but they usually looks like this one:
 
 [[[
-array := FFIExternalArray externalNewType: 'double' size: 100.
-1 to: 100 do: [ :i| values at: i put: Random new next ].
-
-FFICallback class 
-	primQsort: array
-	with: 100 
-	with: array type typeSize 
-	with: aCallback. "We will see callbacks in the next entry ""Callbacks"""
-]]]
-
-This approach is very simple, but it fails to work in the case of structures, because with ==FFIExternalArray== we know the size of the array 
-just after instantiating it. To fix this problem we use ==FFIArrayType==.
-
-!!!! FFIArrayType
-==FFIArrayType== works as ==FFIExternalArray== for most of the cases (after all, it inherits from it) but instead its parent, ==FFIArrayType== acts 
-defining ""a new type"", as it would be using typedef in C. 
-
-Declare a new array type is very simple : 
-
-[[[
-Example class >> initialize [
-	Char128 := FFITypeArray ofType: #char size: 128.
-	array := Chat128 new.
+AthensCairoCanvas class >> asExternalTypeOn: generator [
+	"use handle ivar to hold my instance (cairo_t)"
+	^ FFIExternalObjectType objectClass: self
 ]
 ]]]
 
-This will declare an array equivalent to ==char[128]== and it will instantiate a variable of that array. 
-In the example, we use a class variable ==Char128== to store our new defined type, hence it will be accesible in all the hierarchy. If we want 
-a more visible type, we can put it in a ==SharedPool== to make it accessible. 
+@@note if you want to add the resource to an automatic free mechanism (to make GC frees also the external object), you need
+to call ==autoRelease== (in case of children from FFIExternalObject) or implement similar mechanism.
 
-This approach can be used in any circunstance but is particulary useful for using with structures, because structures need to be allocated with a
-precise size and alignment.
-
-For example, we can instantiate an structure of this type in C: 
-
-[[[
-struct example {
-	char[128] chars;
-}
-]]]
-
-in Pharo : 
-
-[[[
-Example class >> fieldsDesc [
-	^ #(
-	Char128 chars
-	)
-]
-]]]
+@@note FFIExternalObject replaces NBExternalObject
 
 !!! Opaque references
 UnifiedFFI can work with opaque types (An opaque datatype is an structure which fields are not visible and is always accessed through a pointer 
@@ -311,5 +376,26 @@ SQLite3 class >> primOpen: filename handle: handle [
 
 SQLite3 >> primColumnBlob: aStatement column: aColumn [
 	self ffiCall: #(const void *sqlite3_column_blob (sqlite3_stmt* aStatement, int aColumn))
+]
+]]]
+
+!!! External address
+
+External addresses (contained in the class ==ExternalAddress==) is the way we represent any kind of data ''outside''
+Smalltalk. That means data (pointers, structures, arrays) who are allocated in the heap.
+
+An ==ExternalAddress== can be:
+
+- an allocation of memory (you can use ==ExternalAddress class >> allocate:== or ==ExternalAddress class >> gcallocate:==). Note that in case of ==#allocate:== you will need to ==#free== the external address later (==#gcallocate:== does that work for you).
+- the result of a function call (usually it will come as part of an ==ExternalData==)
+
+==ExternalData== represents an ==ExternalAddress== with an C type associated. For example,
+
+Both ==ExternalAddress== and ==ExternalData== can be used as arguments when declaring functions with pointers as parameters,
+for example:
+
+[[[
+LibC >> memCopy: src to: dest size: n [
+	^ self ffiCall: #(void *memcpy(void *dest, const void *src, size_t n)
 ]
 ]]]
