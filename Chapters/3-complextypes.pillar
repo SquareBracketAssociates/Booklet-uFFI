@@ -5,12 +5,14 @@ The previous chapter explored the marshalling rules of basic types such as integ
 But in addition to these basic types, existing libraries may make use of more complex data-types, i.e., data-types that are built from simpler data-types.
 This chapter builds on top of the knowledge of previous chapters to introduce these more complex types.
 
-On the one hand, uFFI provides support to map C complex data-types,such as arrays and structures.
-Arrays represent a bound sequence of values of a single data-type, e.g., a sequence of 10 integers.
-Structures represent a collection of values of heterogeneous data-types, e.g., a group of an integer and a two booleans.
+This chapter starts by showing how to define type aliases. Type aliases are user-defined alternative names for other types, usually used to improve the readability of the code.
+In addition, you'll see further in this chapter how uFFI exploits them to define more complex types.
 
-In addition, uFFI allows developers to define their own user-defined data-types in Pharo.
-User-defined data-types range from simple type aliases, to user-defined classes wrapping external C values.
+uFFI provides support to map C complex data-types,such as arrays, structures, enumerations and unions.
+Arrays are data-types defining a bound sequence of values of a single data-type, e.g., a sequence of 10 integers.
+Structures are data-types defining a collection of values of heterogeneous data-types, e.g., a group of an integer and a two booleans.
+Enumerations are data-types defining a finite set of named values, e.g., the characters between a and z.
+Unions are data-types defining a single value that can be interpreted with different internal representations, e.g., we may want to see a float as an int to extract its mantissa.
 
 !!! Defining Type Aliases
 
@@ -394,98 +396,6 @@ Object subclass: #FFITutorial
   ...
 ]]]
 
-!!! External objects
+!!! Unions
 
-==FFIExternalObject== represents an object in the heap. An external object is a reference to any kind of data allocated in the heap mapped to a Smalltalk object.
-
-This is confusing, so I will try to explain it better: When you allocate a region of memory in the heap, you get a pointer to that location, which does not represent anything. But often, frameworks will allocate structures, pointers, etc. which actually represents "an object" (not in the same sense as a Smalltalk object, but can be interpreted like one). For example,
-to create a cairo surface, you can call this:
-
-[[[
-AthensCairoSurface class >> primImage: aFormat width: aWidth height: aHeight [
-	^ self ffiCall: #(AthensCairoSurface * cairo_image_surface_create ( int aFormat,
-	int aWidth, int aHeight) )
-]
-]]]
-
-This will call the cairo function ==cairo_image_surface_create== but instead answer an ==ExternalAddress== it will create an
-instance of ==AthensCairoSurface==, so you can treat the allocated pointer as an object.
-
-Any class in the system can be an external object as long as either:
-- it inherits from ==FFIExternalObject==; or
-- it implements in its ""class side"" the method ==asExternalTypeOn:==.
-
-You can check for implementors of ==asExternalTypeOn:== for examples, but they usually looks like this one:
-
-[[[
-AthensCairoCanvas class >> asExternalTypeOn: generator [
-	"use handle ivar to hold my instance (cairo_t)"
-	^ FFIExternalObjectType objectClass: self
-]
-]]]
-
-@@note if you want to add the resource to an automatic free mechanism (to make GC frees also the external object), you need
-to call ==autoRelease== (in case of children from FFIExternalObject) or implement similar mechanism.
-
-@@note FFIExternalObject replaces NBExternalObject
-
-!!! Opaque references
-UnifiedFFI can work with opaque types (An opaque datatype is an structure which fields are not visible and is always accessed through a pointer 
-to it, see *https://en.wikipedia.org/wiki/Opaque_data_type*).
-This is usefull when working with obscure types (types we do not know its composition).
-Take this as an example (taken from SQLite bindings): 
-
-[[[ 
-typedef struct sqlite3 sqlite3;
-typedef struct sqlite3_stmt sqlite3_stmt;
-]]]
-
-this defines a type of a structure, and then is used along the api in this way: 
-
-[[[
-int sqlite3_open(char *filename, sqlite3 **handle);
-char *sqlite3_column_name(sqlite3_stmt* aStatement, int aColumn)
-]]]
-
-this means we always access them through a reference. Now, we could declare the pointer to the structures (using ==FFIExternalObject==), 
-but then our declarations wouldn't be as close to C as we want, as we need to change the declaration.
-
-This is where ==FFIOpaqueObject== come to help: we declare it and then we use it always as reference.
-
-In the case of the example, it would work like this: 
-
-[[[ 
-SQLite3 class >> initialize [
-	sqlite3 := #FFIOpaqueObject.
-	sqlite3_stmt :=	#FFIOpaqueObject.
-]
-
-SQLite3 class >> primOpen: filename handle: handle [
-	self ffiCall: #(int sqlite3_open(String filename, sqlite3 **handle)).
-]
-
-SQLite3 >> primColumnBlob: aStatement column: aColumn [
-	self ffiCall: #(const void *sqlite3_column_blob (sqlite3_stmt* aStatement, int aColumn))
-]
-]]]
-
-!!! External address
-
-External addresses (contained in the class ==ExternalAddress==) is the way we represent any kind of data ''outside''
-Smalltalk. That means data (pointers, structures, arrays) who are allocated in the heap.
-
-An ==ExternalAddress== can be:
-
-- an allocation of memory (you can use ==ExternalAddress class >> allocate:== or ==ExternalAddress class >> gcallocate:==). Note that in case of ==#allocate:== you will need to ==#free== the external address later (==#gcallocate:== does that work for you).
-- the result of a function call (usually it will come as part of an ==ExternalData==)
-
-==ExternalData== represents an ==ExternalAddress== with an C type associated. For example,
-
-Both ==ExternalAddress== and ==ExternalData== can be used as arguments when declaring functions with pointers as parameters,
-for example:
-
-[[[
-LibC >> memCopy: src to: dest size: n [
-	^ self ffiCall: #(void *memcpy(void *dest, const void *src, size_t n)
-]
-]]]
+!!! Conclusion
