@@ -212,6 +212,35 @@ FFITutorial new fractionToDouble: aFraction handle.
 
 !!!! Using external objects as ==self== argument
 
+To make our bindings more object-oriented, the next step is to move the behaviour manipulating our objects closer to our objects.
+In other words, define our call\-outs in the classes they manipulate, e.g., ask a fraction to transform itself into double.
+
+[[[language=smalltalk
+aFraction asDouble.
+>>> 5.714285714285714
+]]]
+
+A naïve, yet working, implementation of such binding requires to move our already-existing methods to the FractionStructure class:
+
+[[[language=smalltalk
+FractionStructure >> asDouble [
+  ^ self fractionToDouble: self
+]
+
+FractionStructure >> fractionToDouble: aFraction [
+  ^ self ffiCall: #(double fraction_to_double(FractionStructure* a_fraction))
+]
+]]]
+
+However, uFFI allows us to enhance our bindings even further, combining external objects with ==self== arguments in our call\-outs.
+Indeed, our methods ==asDouble== and ==fractionToDouble:== can be merged in a single one using ==self== as a literal argument of the function.
+
+[[[language=smalltalk
+FractionStructure >> asDouble [
+  ^ self ffiCall: #(double fraction_to_double((FractionStructure *)self))
+]
+]]]
+
 !!!! Opaque Objects
 UnifiedFFI can work with opaque types (An opaque datatype is an structure which fields are not visible and is always accessed through a pointer 
 to it, see *https://en.wikipedia.org/wiki/Opaque_data_type*).
