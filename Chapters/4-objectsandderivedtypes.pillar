@@ -1,9 +1,102 @@
 !! Designing with uFFI and FFI Objects
 
-In addition, uFFI allows developers to define their own user-defined data-types in Pharo.
-User-defined data-types range from simple type aliases, to user-defined classes wrapping external C values.
+In the previous chapters we have studied the uFFI mechanics necessary to bind an external C library.
+We have studied in particular how to call functions, how basic types are marshalled, and how we can manipulate more complex types.
+However, we have not yet discussed how those call\-out bindings and types should be structured in a project.
 
-!!! External objects
+This chapter presents several ways to organize library bindings.
+The first approach presented is the naïf-yet-simple ==single library object== that organises the bindings as a façade.
+In addition, uFFI allows to take a second approach exploiting the object-oriented nature of Pharo, in particular splitting the binding in different objects and encapsulating the data they manipulate.
+For this, we exploit the idea of ""external objects"" and ""opaque objects""
+
+!!! First approach: single library façade object
+
+The first approach for organizing external library bindings is to follow the façade design pattern.
+In other words, there is a single object that concentrates all bindings and types of our library.
+This approach is useful to have an idea of our bindings with a naked eye, since all bindings are together.
+
+!!!! The ==FFILibrary== as a single point of access
+
+uFFI proposes an idoneous place for such a pattern of usage: our library object, subclass of ==FFILibrary==.
+We have seen in previous chapters that when defining a call\-out, we need to specify the external library where the function is located, either at the definition of the call\-out using the ==ffiCall:library:== method:
+
+[[[language=smalltalk
+FFITutorial >> abs: n [
+  self ffiCall: #( int abs (int n) ) library: MyLibC
+]
+]]]
+
+Or by omitting the library in the call\-out and redefining the method ==ffiLibrary== to specify the library for all call\-outs in the class.
+
+[[[language=smalltalk
+FFITutorial >> abs: n [
+  self ffiCall: #( int abs (int n) )
+]
+
+FFITutorial >> ffiLibrary [
+  ^ MyLibC
+]
+]]]
+
+When we choose to use the façade pattern for our bindings, uFFI provides a convenience behaviour: for all subclasses of ==FFILibrary==, the method ==ffiLibrary== returns ==self==:
+
+[[[language=smalltalk
+FFILibrary >> ffiLibrary [
+  ^ self
+]
+]]]
+
+This convenience behaviour allows binding developers to place call\-out bindings inside the library object, and avoid declaring the ==ffiLibrary== at all.
+By using this pattern, the library object is not only the object that knows how to find the external library and find the functions: it becomes also a reification of the external library with its functions too. 
+
+!!!! Redefining ==MyLibC== as a façade
+
+Following the pattern explained above, we can now turn our example library ==MyLibC== from the first chapter into a façade, as follows:
+
+[[[language=smalltalk
+FFILibrary subclass: #MyLibC
+	instanceVariableNames: ''
+	classVariableNames: ''
+	package: 'UnifiedFFI-Libraries'
+
+MyLibC >> unixLibraryName [
+	^ 'libc.so.6'
+]
+
+MyLibC >> macLibraryName [
+	^ 'libc.dylib'
+]
+
+MyLibC >> win32LibraryName [
+	"While this is not a proper 'libc', MSVCRT has the functions we need here."
+	^ 'msvcrt.dll'
+]
+
+MyLibC >> ticksSinceStart [
+	^ self ffiCall: #( uint clock() )
+]
+
+MyLibC >> time [
+	^ self ffiCall: #( uint time( NULL ) )
+]
+]]]
+
+Which can be used as any normal object now:
+
+[[[language=smalltalk
+MyLibC new time
+]]]
+
+We leave it as an exercise for the reader to explore the differences between putting the call\-out bindings as instance\-side or class\-side methods.
+
+As the reader may see, this approach's is the strongest when we are binding a small library or a small subset of a large library.
+The main advantage is that the entire binding can be understood by taking a look at a single class.
+However, as soon as bindings grow in complexity, we need to re-structure and refactor our bindings into different objects, as we will see in the following sections.
+
+!!! Extracting Behaviour into External Objects
+
+
+!!!! External objects and ==self== arguments
 
 ==FFIExternalObject== represents an object in the heap. An external object is a reference to any kind of data allocated in the heap mapped to a Smalltalk object.
 
@@ -38,7 +131,7 @@ to call ==autoRelease== (in case of children from FFIExternalObject) or implemen
 
 @@note FFIExternalObject replaces NBExternalObject
 
-!!! Opaque references
+!!!! Opaque Objects
 UnifiedFFI can work with opaque types (An opaque datatype is an structure which fields are not visible and is always accessed through a pointer 
 to it, see *https://en.wikipedia.org/wiki/Opaque_data_type*).
 This is usefull when working with obscure types (types we do not know its composition).
@@ -77,128 +170,3 @@ SQLite3 >> primColumnBlob: aStatement column: aColumn [
 	self ffiCall: #(const void *sqlite3_column_blob (sqlite3_stmt* aStatement, int aColumn))
 ]
 ]]]
-
-!!! External address
-
-External addresses (contained in the class ==ExternalAddress==) is the way we represent any kind of data ''outside''
-Smalltalk. That means data (pointers, structures, arrays) who are allocated in the heap.
-
-An ==ExternalAddress== can be:
-
-- an allocation of memory (you can use ==ExternalAddress class >> allocate:== or ==ExternalAddress class >> gcallocate:==). Note that in case of ==#allocate:== you will need to ==#free== the external address later (==#gcallocate:== does that work for you).
-- the result of a function call (usually it will come as part of an ==ExternalData==)
-
-==ExternalData== represents an ==ExternalAddress== with an C type associated. For example,
-
-Both ==ExternalAddress== and ==ExternalData== can be used as arguments when declaring functions with pointers as parameters,
-for example:
-
-[[[
-LibC >> memCopy: src to: dest size: n [
-	^ self ffiCall: #(void *memcpy(void *dest, const void *src, size_t n)
-]
-]]]
-
-!!! Handles (Windows)
-Constant HANDLEs, as described in *Windows MSDN>https://msdn.microsoft.com/en-us/library/windows/desktop/ms724457(v=vs.85).aspx*
-are a special kind of external object who are accessed through numbers, therefore and ==ExternalAddress== is not appropriate to 
-describe it (since they are constants and external addresses represents disposable spaces from memory).
-
-Is not clear this is necessary outside Windows, but according to documentation they are somekind analogous to unix's File Descriptors 
-(with some remarkable diferences, as documented *here>http://lackingrhoticity.blogspot.fr/2015/05/passing-fds-handles-between-processes.html*.
-
-Example: 
-[[[
-User32 class >> initialize [
-	HWND := #FFIConstantHandle.
-]
-
-User32 class >> getActiveWindow [
-	^ self ffiCall: #(HWND GetActiveWindow())
-]
-]]]
-
-!!! Annexes
-
-
-!!!! Casting 
-In Pharo, “casting” as made in C is not necessar since this is just a way to tell the C compiler that a pointer is form a certain 
-type (but is always a pointer, and in machine code is always the same). Nevertheless, there are some usages were we may want to see 
-pointers as specific instances in our image. 
-Next examples will cover this cases.
-
-!!!!! Converting pointers to objects of any type
-So, here you will do something like this: 
-
-Let's suppose you want to execute something like this (taken from a question on the pharo mailing list): 
-
-[[[
-Iterator >> asCollectionOfType: aTypeName [
-	| result address typeClass |
-	
-	result := OrderedCollection new.
-	address := ExternalAddress new.
-	typeClass := FFIExternalType resolveType: aTypeName.
-	[ self iterator_next: address ] 
-		whileTrue: [ result add: (address castTo: typeClass) ].
-  ^result
- ]
-
-Iterator >> iterator_next: data [
-	^ self ffiCall: #(Boolean iterator_next (Iterator self, void** data))
-]
-]]]
-
-
-This is, you want to iterate a collection of certain type and converting it to proper instances on Pharo side. 
-
-While you could always implement ==#castTo:== simply like this: 
-
-[[[
-ExternalAddress >> castTo: aClass [
-	^ aClass fromHandle: self
-]
-]]]
-
-But you will still have a problem if your type if your type is an “atomic” type, like ==int==, ==long==, etc. because those values are passed 
-“by value” and not by pointer, so you will need to decode them. In this case, I would implement a method extension and use double dispatch: 
-
-[[[
-ExternalAddress >> castTo: aClass [
-	^ aClass valueFromHandle: self
-]
-
-FFIExternalType class >> valueFromHandle: anAddress [
-	“This is used for structures, but we can reuse them :)"
-	^ self new handle: anAddress at: 1 
-]
-		
-FFIExternalReference class >> valueFromHandle: anAddress [
-	^ self fromHandle: anAddress
-]
-
-FFIExternalStructure class >> valueFromHandle: anAddress [
-	^ self fromHandle: anAddress
-]
-]]]
-
-Then your cast will work as expected.
-
-!!!!! Non conventional casts
-Casting in C is trivial. You can do something like this:
-
-[[[
-void *var = 0x42000000.
-]]]
-
-And you will be creating a pointer who points to the address 0x42000000. This kind of declarations are used in certain frameworks, notably some Windows libraries.
-
-In Pharo this "casting" is not so easy, and we need to declare this kind of variables as ExternalAddresses. We do this as this:
-
-[[[
-var := ExternalAddress fromAddress: 16r42000000.
-]]]
-
-!! FAQs
-
-If someone is interested to collect questions and answers from the mailing-list this is where there could go. 
