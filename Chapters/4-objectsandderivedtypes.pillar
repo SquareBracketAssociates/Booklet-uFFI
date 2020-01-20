@@ -250,7 +250,7 @@ We can see it as a structure which fields are not visible to us, the point beign
 Libraries using such data-types allow only to create values of such types and manipulate them through their functions, which renders an API similar to encapsulated objects.
 uFFI provides support for opaque objects through the ==FFIOpaqueObject== class.
 
-!!! Defining an opaque type
+!!!! Defining an opaque type
 
 Consider an external function which publishes its public API through a header file with function definitions.
 This header file defines a type ==fraction== although we do not know how it is internally defined.
@@ -277,7 +277,7 @@ FFITutorial >> fractionToFloat: aFraction [
 ]
 ]]]
 
-!!! Opaque types are External Objects
+!!!! Opaque types are External Objects
 
 To make the example above more object-oriented, opaque data-types can be easily defined as external objects with the class ==FFIOpaqueObject==. An ==FFIOpaqueObject== is an external object that assumes nothing about its internal representation: it's just a pointer to some external data.
 Moreover, we can then define bindings inside that class, and use ==self== as argument to simplify our bindings.
