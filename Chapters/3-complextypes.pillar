@@ -261,41 +261,6 @@ FFITutorial new fractionToDouble: aFraction.
 >>> 5.714285714285714
 ]]]
 
-!!!! Structures embedding arrays
-
-Arrays in C can appear embedded in structures defined as follows, where a structure contains an array of four ints.
-
-[[[language=c
-struct {
-	int some_array[4];
-}
-]]]
-
-Constrastingly with a struct containing ''a pointer'' to an array, the structs created from the definition above will contain the entire array allocated within the struct. Choosing between a struct that embeds an array or one that references an array through a pointer is a responsibility of the author of the C library we are binding, and it is outside the scope of the booklet. However, different structures are defined differently in uFFI. 
-
-Defining the structure above in uFFI requires that we define an array type of size 4 for our ==some_array== field.
-We can define such user defined type as a type alias in our class-side, import our type pool in our structure class and then use our type in our field definitions.
-
-[[[language=smalltalk
-FFITutorialTypes class >> initialize [
-  int4array := FFIArray newArrayType: #int size: 4.
-]
-  
-FFIStructure subclass: #EmbeddingArrayStructure
-  instanceVariableNames: ''
-  classVariableNames: ''
-  poolDictionaries: 'FFITutorialTypes'
-  package: 'FFITutorial'
-  
-EmbeddingArrayStructure class >> fieldsDesc [
-  ^ #(
-  int4array some_array;
-  )
-]
-
-EmbeddingArrayStructure rebuildFieldAccessors.
-]]]
-
 !!!! Structures by copy or by reference
 
 Structures in C can be passed as argument both by copy and by reference.
@@ -343,6 +308,41 @@ aFraction denominator: 7.
 "Both below do work"
 FFITutorial new printByPointer: aFraction.
 FFITutorial new printByCopy: aFraction.
+]]]
+
+!!!! Structures embedding arrays
+
+Arrays in C can appear embedded in structures defined as follows, where a structure contains an array of four ints.
+
+[[[language=c
+struct {
+	int some_array[4];
+}
+]]]
+
+Constrastingly with a struct containing ''a pointer'' to an array, the structs created from the definition above will contain the entire array allocated within the struct. Choosing between a struct that embeds an array or one that references an array through a pointer is a responsibility of the author of the C library we are binding, and it is outside the scope of the booklet. However, different structures are defined differently in uFFI. 
+
+Defining the structure above in uFFI requires that we define an array type of size 4 for our ==some_array== field.
+We can define such user defined type as a type alias in our class-side, import our type pool in our structure class and then use our type in our field definitions.
+
+[[[language=smalltalk
+FFITutorialTypes class >> initialize [
+  int4array := FFIArray newArrayType: #int size: 4.
+]
+  
+FFIStructure subclass: #EmbeddingArrayStructure
+  instanceVariableNames: ''
+  classVariableNames: ''
+  poolDictionaries: 'FFITutorialTypes'
+  package: 'FFITutorial'
+  
+EmbeddingArrayStructure class >> fieldsDesc [
+  ^ #(
+  int4array some_array;
+  )
+]
+
+EmbeddingArrayStructure rebuildFieldAccessors.
 ]]]
 
 !!! Enumerations
