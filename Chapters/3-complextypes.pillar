@@ -441,9 +441,9 @@ PackedAlignmentExampleStructure class >> fieldsDesc [
 PackedAlignmentExampleStructure rebuildFieldAccessors.
 ]]]
 
-Differently from the non-packed structure of a couple of sections ago, this packed structure shows that both fields are contiguous: ==a== is the first byte, ==b== is the second.
+Differently from the non-packed structure of a couple of sections ago, this packed structure shows that both fields are contiguous: ==a== is the first byte, ==b== is the second:
 
-[[[language=smalltal
+[[[language=smalltalk
 PackedAlignmentExampleStructure classPool at: #OFFSET_A.
 >>> 1
 PackedAlignmentExampleStructure classPool at: #OFFSET_B.

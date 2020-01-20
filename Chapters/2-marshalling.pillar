@@ -349,7 +349,7 @@ In contrast to Pharo, many function arguments in C are, by default, \"passed by 
 For example, every time we send an integer or a float as an argument to a function, its value is ''copied'' (pushed onto the C stack) prior to calling the function.
 Passing by value, while trivial for simple types such as numbers, usually demands more consideration when dealing with complex ''mutable'' types, such as arrays and structures.  If an invoked function were to modify a ''copy'' of data received as an argument, the original value held by the caller would remain unmodified \-\- which might not be the intended outcome.
 
-Therefore, in addition to ''pass by value'', C too supports passing arguments by reference, in this case using **pointers** (a C type that equates to an address in memory).
+Therefore, in addition to ''pass by value'', C too supports passing arguments by reference, in this case using ""pointers"" (a C type that equates to an address in memory).
 Use of a C pointer as an argument is often denoted explicitly in function declarations by prefixing the ==*== character to a variable name (although some C types are implicitly of pointer type).
 
 For example, a function ==foo()== that receives an ==int== pointer as an argument and returns a ==char== pointer will have a function declaration similar to the following\:

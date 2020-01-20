@@ -140,7 +140,7 @@ FractionStructure class >> fieldsDesc [
 ]
 ]]]
 
-!!!! Marshalling external object **arguments**: an example
+!!!! Marshalling external object arguments: an example
 
 As an example let's consider the ==fraction_to_double== from before and its usage below:
 
@@ -172,7 +172,7 @@ FFITutorial new fractionToDouble: aFraction handle.
 >>> 5.714285714285714
 ]]]
 
-!!!! Marshalling external object **return values**: an example
+!!!! Marshalling external object return values: an example
 
 External object types can be used as return values of functions too.
 Consider the following C function that creates a fraction struct and its uFFI binding.
