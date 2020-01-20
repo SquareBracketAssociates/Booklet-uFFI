@@ -296,6 +296,55 @@ EmbeddingArrayStructure class >> fieldsDesc [
 EmbeddingArrayStructure rebuildFieldAccessors.
 ]]]
 
+!!!! Structures by copy or by reference
+
+Structures in C can be passed as argument both by copy and by reference.
+A structure passed by copy means that a copy of the entire structure has to be done and sent to the calling function.
+A structure passed by reference means that a pointer to the same structure is shared between the caller and callee.
+In C, we can distinguish between these two in two cases: 1) by the appearance of the pointer type modifier ""*"" in type declarations, and 2) by the need to explicitly send a pointer to the function expecting pointers.
+
+[[[language=c
+int print_by_pointer(fraction* a_fraction_reference);
+int print_by_copy(fraction a_fraction_copy);
+
+...
+
+fraction f;
+
+//The function below requires a copy, so just send f, the compiler takes care
+print_by_copy(f);
+
+//The function below requires a pointer, so dereference f
+print_by_pointer(&f);
+]]]
+
+In uFFI, such a difference is also reflected in FFI bindings by using or not a pointer type:
+
+[[[language=smalltalk
+FFITutorial >> printByPointer: aFraction [
+  ^ self ffiCall: #(int print_by_pointer(FractionStructure* a_fraction))
+]
+
+FFITutorial >> printByCopy: aFraction [
+  ^ self ffiCall: #(int print_by_copy(FractionStructure a_fraction))
+]
+]]]
+
+However, in contrast with C, does not require explicit pointers send to the functions by dereferencing structures.
+Just sending the structure object as argument will take care of the dereferencing if needed.
+
+[[[language=smalltalk
+"In C heap"
+aFraction := FractionStructure externalNew.
+
+aFraction numerator: 40.
+aFraction denominator: 7.
+
+"Both below do work"
+FFITutorial new printByPointer: aFraction.
+FFITutorial new printByCopy: aFraction.
+]]]
+
 !!! Enumerations
 
 Enumerations are data-types defining a finite set of named values.
