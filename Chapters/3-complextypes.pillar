@@ -345,6 +345,111 @@ EmbeddingArrayStructure class >> fieldsDesc [
 EmbeddingArrayStructure rebuildFieldAccessors.
 ]]]
 
+!!!! Structure Alignment
+
+Structures are usually organised in memory as a contiguous region containing all its fields in the order they were defined.
+However, compilers usually align structure fields to simplify the access to them, by adding some ""padding"", i.e., hidden fields that occupy some space to force subsequent fields to move to the desired position.
+
+For example, consider the structure with two fields ==a== and ==b== of types ==char== and ==int== respectively.
+Although the ==char a== field only occupies 1 byte, the second field ==b== starts in the fifth byte: it is aligned to 4 bytes. This means the compiled version of such a struct adds 3 bytes of padding between our two fields.
+
+[[[language=c
+// We define
+struct {
+  char a;
+  int b;
+}
+
+// The compiler defines
+struct {
+  char a;
+  char padding1[3];
+  int b;
+}
+]]]
+
+uFFI handles paddings and alignments automatically respecting the C standard behavior.
+We can define the structure above using uFFI as:
+
+[[[language=smalltalk
+FFIStructure subclass: #AlignmentExampleStructure
+instanceVariableNames: ''
+  classVariableNames: ''
+  package: 'FFITutorial'
+
+AlignmentExampleStructure class >> fieldsDesc [
+  ^ #(
+  	char a;
+  	int b;
+  	)
+]
+
+AlignmentExampleStructure rebuildFieldAccessors.
+]]]
+
+And then test that the fields are correctly aligned: ==a== is the first byte, ==b== is the fifth:
+
+[[[language=smalltal
+AlignmentExampleStructure classPool at: #OFFSET_A.
+>>> 1
+AlignmentExampleStructure classPool at: #OFFSET_B.
+>>> 5
+]]]
+
+!!!! Packed Structures
+
+From time to time we will find libraries that use ""packed structures"".
+Packed structures are structures that are compiled without some or all of its padding.
+For example, some compilers will use the pragma ==pack== to tweak the alignment of structures.
+
+[[[language=c
+#pragma pack(push)  /* push current alignment to stack */
+#pragma pack(1)     /* set alignment to 1 byte boundary */
+
+struct {
+  char a;
+  int b;
+}
+
+#pragma pack(pop)   /* restore original alignment from stack */
+]]]
+
+Some other compilers will have directives to specify packing at the level of a field:
+
+[[[language=c
+struct {
+  char a;
+  int b __attribute__((packed));
+}
+]]]
+
+uFFI provides support for mapping ""packed structures"" through the ==FFIPackedStructure== class, which is a subclass of ==FFIStructure== that redefines how fields are aligned. ==FFIPackedStructure== does avoid all paddings, creating a single packed structure where each field follows the next one. Consider the example of ==FFIPackedStructure== below, mapping our packed structure above.
+
+[[[language=smalltalk
+FFIPackedStructure subclass: #PackedAlignmentExampleStructure
+instanceVariableNames: ''
+  classVariableNames: ''
+  package: 'FFITutorial'
+
+PackedAlignmentExampleStructure class >> fieldsDesc [
+  ^ #(
+  	char a;
+  	int b;
+  	)
+]
+
+PackedAlignmentExampleStructure rebuildFieldAccessors.
+]]]
+
+Differently from the non-packed structure of a couple of sections ago, this packed structure shows that both fields are contiguous: ==a== is the first byte, ==b== is the second.
+
+[[[language=smalltal
+PackedAlignmentExampleStructure classPool at: #OFFSET_A.
+>>> 1
+PackedAlignmentExampleStructure classPool at: #OFFSET_B.
+>>> 2
+]]]
+
 !!! Enumerations
 
 Enumerations are data-types defining a finite set of named values.
