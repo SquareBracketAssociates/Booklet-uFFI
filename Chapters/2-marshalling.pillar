@@ -326,7 +326,7 @@ We will let you, the reader, experiment with these as an exercise.
 !!!! Special Variables: The Case of ==self==
 
 We can also pass ==self== as an argument to a C call.
-Suppose we want to add the ==abs()== function call to an extention of the class ==SmallInteger==, in a method named  ==absoluteValue==.  This would allows us to write expressions such as ==\-50 absoluteValue==.
+Suppose we want to add the ==abs()== function call to an extension of the class ==SmallInteger==, in a method named  ==absoluteValue==.  This would allow us to write expressions such as ==\-50 absoluteValue==.
 
 To do this, we simply add an ==absoluteValue== method to ==SmallInteger== and directly pass ==self== as a (typed) argument.  Though a pseudo-variable, Pharo will demarshall ==self== correctly as it does any instance variable\:
 
@@ -390,7 +390,7 @@ FFITutorial malloc: 200
  => (void*)@ 16r7FFBDE0DE030
 ]]]
 
-But if we ask for more memory than is currently available, ==malloc()== will fail and return a ==NULL== pointer instead\:
+But if we ask for more memory than there is currently available, ==malloc()== will fail and return a ==NULL== pointer instead\:
 
 [[[language=smalltalk
 FFITutorial malloc: SmallInteger maxVal
