@@ -1,0 +1,103 @@
+!!! Handles (Windows)
+Constant HANDLEs, as described in *Windows MSDN>https://msdn.microsoft.com/en-us/library/windows/desktop/ms724457(v=vs.85).aspx*
+are a special kind of external object who are accessed through numbers, therefore and ==ExternalAddress== is not appropriate to 
+describe it (since they are constants and external addresses represents disposable spaces from memory).
+
+Is not clear this is necessary outside Windows, but according to documentation they are somekind analogous to unix's File Descriptors 
+(with some remarkable diferences, as documented *here>http://lackingrhoticity.blogspot.fr/2015/05/passing-fds-handles-between-processes.html*.
+
+Example: 
+[[[
+User32 class >> initialize [
+	HWND := #FFIConstantHandle.
+]
+
+User32 class >> getActiveWindow [
+	^ self ffiCall: #(HWND GetActiveWindow())
+]
+]]]
+
+!!! Annexes
+
+
+!!!! Casting 
+In Pharo, “casting” as made in C is not necessar since this is just a way to tell the C compiler that a pointer is form a certain 
+type (but is always a pointer, and in machine code is always the same). Nevertheless, there are some usages were we may want to see 
+pointers as specific instances in our image. 
+Next examples will cover this cases.
+
+!!!!! Converting pointers to objects of any type
+So, here you will do something like this: 
+
+Let's suppose you want to execute something like this (taken from a question on the pharo mailing list): 
+
+[[[
+Iterator >> asCollectionOfType: aTypeName [
+	| result address typeClass |
+	
+	result := OrderedCollection new.
+	address := ExternalAddress new.
+	typeClass := FFIExternalType resolveType: aTypeName.
+	[ self iterator_next: address ] 
+		whileTrue: [ result add: (address castTo: typeClass) ].
+  ^result
+ ]
+
+Iterator >> iterator_next: data [
+	^ self ffiCall: #(Boolean iterator_next (Iterator self, void** data))
+]
+]]]
+
+
+This is, you want to iterate a collection of certain type and converting it to proper instances on Pharo side. 
+
+While you could always implement ==#castTo:== simply like this: 
+
+[[[
+ExternalAddress >> castTo: aClass [
+	^ aClass fromHandle: self
+]
+]]]
+
+But you will still have a problem if your type if your type is an “atomic” type, like ==int==, ==long==, etc. because those values are passed 
+“by value” and not by pointer, so you will need to decode them. In this case, I would implement a method extension and use double dispatch: 
+
+[[[
+ExternalAddress >> castTo: aClass [
+	^ aClass valueFromHandle: self
+]
+
+FFIExternalType class >> valueFromHandle: anAddress [
+	“This is used for structures, but we can reuse them :)"
+	^ self new handle: anAddress at: 1 
+]
+		
+FFIExternalReference class >> valueFromHandle: anAddress [
+	^ self fromHandle: anAddress
+]
+
+FFIExternalStructure class >> valueFromHandle: anAddress [
+	^ self fromHandle: anAddress
+]
+]]]
+
+Then your cast will work as expected.
+
+!!!!! Non conventional casts
+Casting in C is trivial. You can do something like this:
+
+[[[
+void *var = 0x42000000.
+]]]
+
+And you will be creating a pointer who points to the address 0x42000000. This kind of declarations are used in certain frameworks, notably some Windows libraries.
+
+In Pharo this "casting" is not so easy, and we need to declare this kind of variables as ExternalAddresses. We do this as this:
+
+[[[
+var := ExternalAddress fromAddress: 16r42000000.
+]]]
+
+!! FAQs
+
+If someone is interested to collect questions and answers from the mailing-list this is where there could go. 

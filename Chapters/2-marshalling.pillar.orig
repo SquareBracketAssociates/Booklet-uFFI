@@ -143,7 +143,7 @@ FFITutorial abs: SmallInteger maxVal * Float pi.
 
 returns a Pharo ==LargeNegativeInteger==, since the binary return value, 2^31, will not fit in a Pharo ==SmallInteger==.  It requires ''32'' bits, so uFFI selects the object type it ''will'' fit in, which is a ==LargeNegativeInteger== object.
 
-!!!! Marshalling of Incorrectly Declared Types
+!!!! Marshalling with Incorrectly Declared Types
 
 The marshalling rules we have seen above show that the way in which we specify function types is ''crucial'' to the correct behavior of our bindings, and thus our applications.
 In other words, call\-out bindings require that C types are correctly specified, otherwise run\-time errors \-\- or even worse, viable but incorrect value transformations \-\- may happen.
@@ -349,7 +349,7 @@ In contrast to Pharo, many function arguments in C are, by default, \"passed by 
 For example, every time we send an integer or a float as an argument to a function, its value is ''copied'' (pushed onto the C stack) prior to calling the function.
 Passing by value, while trivial for simple types such as numbers, usually demands more consideration when dealing with complex ''mutable'' types, such as arrays and structures.  If an invoked function were to modify a ''copy'' of data received as an argument, the original value held by the caller would remain unmodified \-\- which might not be the intended outcome.
 
-Therefore, in addition to ''pass by value'', C too supports passing arguments by reference, in this case using ""pointers"" (a C type that equates to an address in memory).
+Therefore, in addition to ''pass by value'', C too supports passing arguments by reference, in this case using **pointers** (a C type that equates to an address in memory).
 Use of a C pointer as an argument is often denoted explicitly in function declarations by prefixing the ==*== character to a variable name (although some C types are implicitly of pointer type).
 
 For example, a function ==foo()== that receives an ==int== pointer as an argument and returns a ==char== pointer will have a function declaration similar to the following\:
@@ -414,7 +414,11 @@ As you might expect by now, uFFI supports pointer arguments by copying the C syn
 
 [[[language=smalltalk
 FFITutorial class >> free: ptr [
-	^ self ffiCall: #( void free( void *ptr ) ) library: LibC
+<<<<<<< HEAD
+	^ self ffiCall: #( void free(void *ptr) ) library: LibC
+=======
+	^ self ffiCall: #( void free( void *ptr ) ) module: LibC
+>>>>>>> tbrunz/copy-edits
 ]
 ]]]
 
@@ -429,22 +433,35 @@ FFITutorial free: anExternalAddress.
 
 ""Warning:"" Always be careful when manipulating memory, especially when accessing it and freeing it.  For each ==malloc()== that allocates memory, you must eventually call a corresponding ==free()== to release it back to the system. Improper memory manipulation can lead to memory access errors and could cause your process to die (or your system to crash).
 
+<<<<<<< HEAD
+In general when using uFFI, we will generally not need to craft any pointers manually.
+The only case for manually generating a pointer are ''NULL'' pointers, because they are typically used ''NULL'' by external libraries as optional arguments.
+These ''NULL'' pointers are created with the following expression:
+=======
 !!!! Optional arguments, ==NULL== pointers, and ==nil==
 
 In general when using uFFI, we will not need to craft any pointers manually, other than ==NULL== pointers.
 ==NULL== pointers (which are interchangeable) can be easily created with the following expression\:
+>>>>>>> tbrunz/copy-edits
 
 [[[language=smalltalk
 ExternalAddress null
   => @ 16r00000000
 ]]]
 
+<<<<<<< HEAD
+For example, in the family of ==malloc()==, the function ==realloc()== will receive two arguments: a pointer to a region of memory and a size.
+This function tries to enlarge the allocated region of memory to the requested size and returns the same pointer.
+However, if a ''NULL'' pointer is provided as argument, ==realloc()== works just as ==malloc()== and just allocates a new region of memory.
+The declaration of ==realloc()== looks a follows:
+=======
 ==NULL== pointers are useful because they are used in many libraries that have optional arguments.
 For example, in the family of memory allocation functions, the function ==realloc()== takes two arguments: a pointer to a region of memory and a size.
 This function tries to enlarge the allocated region of memory to the requested size and returns the same pointer when successful.
 However, if a ==NULL== pointer is provided as argument, ==realloc()== operates instead like ==malloc()== and just allocates a new region of memory.
 
 The declaration of ==realloc()== looks like this\:
+>>>>>>> tbrunz/copy-edits
 
 [[[language=c
 void *realloc( void *ptr, size_t size );
@@ -476,6 +493,7 @@ FFITutorial realloc: nil toSize: 200.
 
 !!! Type Marshalling Rules for Basic Objects
 
+<<<<<<< HEAD
 All Pharo basic objects (integer, floats, strings, booleans, characters) are represented in memory differently in Pharo than in C, thus requiring special marshalling for each of them.
 Moreover, not all values in one language are seamlessly representable in the other.
 For example, while integers in Pharo can have arbitrary precision and will be enlarged on demand, integers in C do overflow and will be simply truncated.
@@ -612,3 +630,6 @@ Finally other basic types have special marshalling rules that apply when transfo
 In particular we have seen that integers suffer from truncations and overflows in C, floating point numbers suffer from lose of precision, and characters in Pharo are interpreted as unicode code points while each C library can interpret characters as they please.
 
 The next chapter explores other data types that can be built from these basic data types: arrays, structures, enumerations and opaque objects.
+=======
+!!! Conclusion
+>>>>>>> tbrunz/copy-edits
