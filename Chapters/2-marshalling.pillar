@@ -599,6 +599,51 @@ FFITutorial class >> printBoolean: b [
 ]
 ]]]
 
+!!! Default Data Types
+
+uFFI includes a set of already defined data types. These data types are accessible to all the FFI libraries and call-outs.
+These data types represent all the data types defined in the C standard and some useful aliases. 
+
+We will divide the data types in fixed-size types, aliases and ABI dependent types. 
+The fixed-size have the same size in all the platforms.
+The ABI dependent types may change their size depending of the running platform.
+Also, uFFI includes a set of useful aliases to ease the creation of FFI callout just by copying the function signature.
+
+!!!! Fixed Size Types
+
+|!Type 	|!Byte Size |!Signed|
+|int8	|	1 		|	Yes	|
+|int16	|	2		|	Yes	|
+|int32	|	4		|	Yes	|
+|int64	|	8		|	Yes	|
+
+|!Type 	|!Byte Size |!Signed|
+|uint8	|	1 		|	No	|
+|uint16	|	2		|	No	|
+|uint32	|	4		|	No	|
+|uint64	|	8		|	No	|
+
+!!!! Floating-point Types
+
+uFFI provides the data types for handling IEEE-754${footnote: https://en.wikipedia.org/wiki/IEEE_754}$ floating point data types. 
+The following table presents the data-types usable in FFI bindings.
+
+|!Type 		|!IEEE 754 		|!Mantissa		|!Exponent		|!Common Name			|
+|float16	|	binary16	|	11 bits		|	5 bits		|Half Precision			|
+|float32	|	binary32	|	24 bits		|	8 bits		|Single Precision		|
+|float64	|	binary64	|	53 bits		|	11 bits		|Double Precision		|
+|float128	|	binary128	|	113 bits	|	15 bits		|Quadruple precision	|
+
+These types are correctly translated to a ==Float== instance in Pharo. 
+A ==Float== instance in Pharo has a precission equivalent to ==float64==.
+
+!!!! Aliases
+
+!!!! Platform Dependant Types
+
+
+!!!! Objects and Special Cases
+
 !!! Conclusion
 
 In this chapter we have studied the basics of uFFI call\-out arguments and their marshalling.
