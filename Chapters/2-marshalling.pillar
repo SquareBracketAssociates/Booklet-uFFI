@@ -599,7 +599,7 @@ FFITutorial class >> printBoolean: b [
 ]
 ]]]
 
-!!! Default Data Types
+!!! More Predefined Data Types
 
 uFFI includes a set of already defined data types. These data types are accessible to all the FFI libraries and call-outs.
 These data types represent all the data types defined in the C standard and some useful aliases. 
@@ -610,6 +610,9 @@ The ABI dependent types may change their size depending of the running platform.
 Also, uFFI includes a set of useful aliases to ease the creation of FFI callout just by copying the function signature.
 
 !!!! Fixed Size Types
+
+uFFI includes a set of fixed size integer types. This types are platform independent.
+They came in two flavours: signed and unsigned.
 
 |!Type 	|!Byte Size |!Signed|
 |int8	|	1 		|	Yes	|
@@ -637,12 +640,56 @@ The following table presents the data-types usable in FFI bindings.
 These types are correctly translated to a ==Float== instance in Pharo. 
 A ==Float== instance in Pharo has a precission equivalent to ==float64==.
 
-!!!! Aliases
-
 !!!! Platform Dependant Types
 
+uFFI is designed to allow the developers to write code that is portable to different platforms.
+As there are types with sizes depending of the platform, uFFI implements the following platform dependant types.
 
-!!!! Objects and Special Cases
+This types are automatically handled correctly depending on the running platform.
+
+|!Type		|32 bits size	| Windows (64 bits) | Linux (64 bits) 	| OS X (64 bits) |
+|size_t		|		4		|		8			|		8			|		8		 |
+|long		|		4		|		4			|		8			|		8		 |
+|ulong		|		4		|		4			|		8			|		8		 |
+
+
+!!!! Aliases
+
+One of the nicest features of uFFI is the ability to copy and paste the definitions of the C Functions
+to implement the FFI calls. 
+
+To have a more extensive support for copying and pasting the definitions, uFFI includes a series of aliases
+from common used data types to uFFI types.
+
+The following table presents the integer aliases: 
+
+|!Alias			|!Target Type	|
+|unsignedByte	|uint8			|
+|unsignedChar	|uint8			|
+|uchar			|uint8			|
+|byte			|uint8			|
+|sbyte			|int8			|
+|schar			|int8			|
+|signedByte		|int8			|
+|signedChar		|int8			|
+|unsignedShort	|uint16			|
+|ushort			|uint16			|
+|short			|int16			|
+|signedShort	|int16			|
+|uint			|uint32			|
+|int			|int32			|
+|signedLong		|int32			|
+|unsignedLong	|uint32			|
+|longlong		|int64			|
+|ulonglong		|uint64			|
+
+Also there are aliases for floating point types:
+
+|!Alias			|!Target Type	|
+|shortFloat		|float16		|
+|float			|float32		|
+|double			|float64		|
+
 
 !!! Conclusion
 
