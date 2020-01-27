@@ -3,3 +3,4 @@ ${inputFile:path=Chapters/2-marshalling.pillar}$
 ${inputFile:path=Chapters/3-complextypes.pillar}$
 ${inputFile:path=Chapters/4-objectsandderivedtypes.pillar}$
 ${inputFile:path=Chapters/5-callbacks.pillar}$
+${inputFile:path=Chapters/6-memorymanagement.pillar}$
