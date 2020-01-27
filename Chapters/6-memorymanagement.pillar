@@ -1,4 +1,98 @@
-!!! How autoRelease works
+!! uFFI and memory management
+
+Using uFFI requires developers to be concious about how memory is managed, because differently than C, Pharo is a garbage collected language.
+On the one hand, most C libraries will require users to make manual bookeeping of the memory they use by explicitly allocating or de-allocating memory.
+On the other hand, Pharo will automatically reclaim unused Pharo objects, or move them in the memory if so is required.
+
+Binding developers need to be extra careful when design their bindings to manage these differences.
+Failing to do so will produce many funny effects such as memory leaks that are hard to detect and incorrect memory accesses.
+
+In this chapter we re-visit how external objects are allocated (and de-allocated) in both the Pharo and the C memory.
+We see the case of Pharo objects sent by reference to C libraries, and we introduce the concept of ""pinned objects"": objects that are not be moved by the garbage collector, yet are still garbage collected.
+Finally, we introduce uFFI auto-released objects: Pharo external objects that will automatically release their C counterpart when they are garbage collected.
+
+
+!!! Pharo vs C memory management: the basics
+
+Memory in Pharo and in C is managed in fundamentally different ways.
+Pharo has automatic memory management where a garbage collector tracks used-objects, moves them around and periodically reclaims unused objects.
+C requires developers to manually manage their memory.
+This section introduces the difference between these two models, and finally introduces the subtleties of uFFI external objects which allow both of them.
+
+!!!! Memory in C
+
+C programs organize their usage of memory in three different ways: static, automatic and dynamic memory.
+Static memory is memory allocated when the process starts and not released until the process finishes.
+How much memory to allocate is known before the execution, typically calculated at compile time.
+For example, ==static== variable declarations in a C program tell the compiler how much memory to pre-allocate for them.
+
+[[[language=c
+static int pre_allocated_variable = 5;
+]]]
+
+Automatic memory is the memory allocated and released without explicit developer intervention.
+For example, space for the local variables of functions is automatically allocated when functions are called, and released when functions return.
+Automatic memory is generally managed by the ==stack==, i.e., extra space is allocated in the stack on a function call, and automatically released on function return because the extra space is popped from the stack to come back to the caller function.
+How much extra memory has to be allocated in the stack is generally calculated at compile time.
+
+[[[language=c
+void some_function(){
+  // Automatic variable allocated in the stack
+  int t = 42;
+}
+]]]
+
+Finally, dynamic memory is the memory that cannot be statically calculated, so programs explicitly allocate and reclaim it.
+Dynamic memory is manipulated through system libraries, for example with the functions ==malloc== and ==free==.
+This kind of memory is said to be stored in the ""heap"", since the memory allocated by the system is usually organized with a heap data-structure.
+Memory dynamically allocated needs to be manually released, otherwise provoking potential memory leaks. 
+
+[[[language=c
+  //Allocate 17 bytes and grab a pointer to that memory region
+  int* pointer = (int*)malloc(17);
+  //Free that memory
+  free(pointer);
+]]]
+
+!!!! Objects in the Pharo Heap
+
+Pharo programs feature automatic memory management: all objects need to be explicitly allocated, and are automatically reclaimed by a garbage collector when they are not used anymore.
+Objects are allocated in Pharo by sending the ==#new== and ==#new:== messages to a class.
+Although there are several kind of classes in Pharo, for the purpose of this booklet we see two main kind of classes: fixed-size and variable-size classes.
+Fixed-size classes, instantiated through ==#new== specify the instance variables of their instances, so we can automatically calculate the amount of storage required for an instance.
+This is the case of most of the classes we create ourselves.
+
+[[[language=smalltalk
+Object subclass: #Point
+  instanceVariableNames: 'x y'
+  classVariableNames: ''
+  package: 'Kernel-BasicObjects'
+    
+Point new
+]]]
+
+Variable-size classes are instead instantiated through ==#new:== and require us to specify a number of slots at instantiation-time.
+
+[[[language=smalltalk
+ArrayedCollection variableSubclass: #Array
+  instanceVariableNames: ''
+  classVariableNames: ''
+  package: 'Collections-Sequenceable-Base'
+    
+Array new: 20.
+]]]
+
+Once instantiated, the life-cycle of an object is automatically managed.
+The runtime-system tracks the graph of objects during the execution and can tell, at any point during the execution, if an object is used or not.
+Pharo's garbage collector defines object usage as reachability.
+That is, any object reachable through a reference is in use or can be used in a future, and will not be collected.
+Like-wise, an object not reachable through any reference can be safely reclaimed.
+
+!!!! uFFI external objects
+
+!!! Pinned Objects
+
+!!! The uFFI auto-release mechanism
 
 Sending #autoRelease message of an object registers object for finalisation with a particular executor.
 Then behaviour is divided:
