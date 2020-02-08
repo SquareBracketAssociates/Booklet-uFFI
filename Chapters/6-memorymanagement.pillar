@@ -98,7 +98,7 @@ We will see in the following section how these properties affect programming wit
 
 !!!! Memory leaks
 
-!!! The uFFI auto-release mechanism
+!!!! The uFFI auto-release mechanism
 
 Sending #autoRelease message of an object registers object for finalisation with a particular executor.
 Then behaviour is divided:
@@ -136,7 +136,7 @@ myStructure := nil.
 However, as objects in the Pharo heap and subject to the control of Pharo's garbage collector, the garbage collector can then wrongly decide to collect objects that, seemingly unused from Pharo, are used from a C library, or decide to move it, leaving a dangling pointer in the C library.
 This situation leads to memory corruptions and funny bugs.
 
-!!!! Moving objects and pinned objects
+!!!! The problem of moving objects
 
 As soon as we send an external object as the argument of a C function, the C function has the freedom to manipulate that external object as it pleases. In particular, this can present some troubles when we send the object by reference using a pointer type, as illustrated in the following function binding:
 
@@ -152,6 +152,8 @@ The garbage collector can then decide to move that object in memory and change i
 However, since the garbage collector has no knowledge about the C library, it cannot determine how that address is used and it cannot update it.
 Moreover, there are no guarantees that concurrently the garbage collector and the C library access and modify the address at the same time.
 We will see in a future chapter that multi-threaded FFI weakens such guarantees even more.
+
+!!!! Pinned Objects
 
 To cope with the problem of moving objects, the Pharo runtime supports ''pinned'' objects.
 Pinned objects are objects that can be reclaimed but not moved by the garbage collector, avoiding the problem of ''moving objects''. To pin an object in memory, we can use the message ==#pinInMemory==.
@@ -175,3 +177,5 @@ The latter allows changing the pinned property with a boolean.
 
 @@note Remember that pinning objects in memory do not prevent the garbage collector to reclaim those objects.
 Any pinned yet unused object will be garbage collect and may create memory corruptions too.
+
+!!! Conclusion
