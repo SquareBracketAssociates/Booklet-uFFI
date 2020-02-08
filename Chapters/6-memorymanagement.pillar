@@ -58,9 +58,11 @@ Memory dynamically allocated needs to be manually released, otherwise provoking 
 
 Pharo programs feature automatic memory management: all objects need to be explicitly allocated, and are automatically reclaimed by a garbage collector when they are not used anymore.
 Objects are allocated in Pharo by sending the ==#new== and ==#new:== messages to a class.
-Although there are several kind of classes in Pharo, for the purpose of this booklet we see two main kind of classes: fixed-size and variable-size classes.
-Fixed-size classes, instantiated through ==#new== specify the instance variables of their instances, so we can automatically calculate the amount of storage required for an instance.
+Although there are several kind of classes in Pharo, for the purpose of this booklet we will concentrate on the two main kind of classes: fixed-size and variable-size classes.
+Fixed-size classes are classes with a fixed number of instance variables, instantiated with the message ==#new==.
+When the VM is instructed to instantiate one of these classes, it calculates the amount of memory required for the instance by looking at the class' instance variables.
 This is the case of most of the classes we create ourselves.
+For example, class ==Point== is a fixed-size class with two instance variables ==x== and ==y==.
 
 [[[language=smalltalk
 Object subclass: #Point
@@ -71,7 +73,9 @@ Object subclass: #Point
 Point new
 ]]]
 
-Variable-size classes are instead instantiated through ==#new:== and require us to specify a number of slots at instantiation-time.
+Variable-size classes are classes whose instances have variable size.
+For example, the ==Array== class allows instances with 0 or many slots.
+These classes are instantiated through the ==#new: aSize== message, specifying the number of required slots at instantiation-time.
 
 [[[language=smalltalk
 ArrayedCollection variableSubclass: #Array
@@ -82,15 +86,17 @@ ArrayedCollection variableSubclass: #Array
 Array new: 20.
 ]]]
 
-Once instantiated, the life-cycle of an object is automatically managed.
-The runtime-system tracks the graph of objects during the execution and can tell, at any point during the execution, if an object is used or not.
-Pharo's garbage collector defines object usage as reachability.
-That is, any object reachable through a reference is in use or can be used in a future, and will not be collected.
-Like-wise, an object not reachable through any reference can be safely reclaimed.
+In contrast with C-managed memory,once instantiated, the life-cycle of a Pharo object is automatically managed by the virtual machine. For the purposes of this uFFI booklet, it is important to know two main properties of Pharo's garbage collector:
+1. the storage of an object that is not used anymore will be automatically reclaimed;
+2. the position of an object may change during execution to avoid memory fragmentation.
+Although these two properties are nice from a Pharo perspective, they require special attention for a uFFI developer, as she has a foot on the Pharo world and a foot in the C world.
+We will see in the following section how these properties affect programming with uFFI, and how Pharo and uFFI provide support to minimize the impact of these issues through auto-release and pinning.
 
-!!!! uFFI external objects
+!!! uFFI external objects in the C Heap
 
-!!! Pinned Objects
+!!!! Instantiation in the C Heap
+
+!!!! Memory leaks
 
 !!! The uFFI auto-release mechanism
 
@@ -107,3 +113,65 @@ Then behaviour is divided:
 An example of this is how AthensCairoSurface works.
 
 @@todo add an example
+
+!!! uFFI external objects in the Pharo Heap
+
+We have seen in previous chapters that the different kind of external objects such as structures, arrays or unions, can be instantiated as normal objects using the ==#new== message.
+This makes external objects to be allocated in the Pharo heap.
+
+[[[language=smalltalk
+myStructure := MyStructure new.
+]]]
+
+Allocating in the Pharo heap has a main advantage: we do not need to manually track the life-cycle of the object and use functions like C's ==free()== to manually release it.
+Instead, the object and the storage it occupies will be released automatically by the garbage collector as soon as our Pharo program does not use it anymore, just like any other Pharo object.
+
+[[[language=smalltalk
+myStructure := MyStructure new.
+" ... use my structure ... "
+" nil it and PLUF, eventually the object will be discarded "
+myStructure := nil.
+]]]
+
+However, as objects in the Pharo heap and subject to the control of Pharo's garbage collector, the garbage collector can then wrongly decide to collect objects that, seemingly unused from Pharo, are used from a C library, or decide to move it, leaving a dangling pointer in the C library.
+This situation leads to memory corruptions and funny bugs.
+
+!!!! Moving objects and pinned objects
+
+As soon as we send an external object as the argument of a C function, the C function has the freedom to manipulate that external object as it pleases. In particular, this can present some troubles when we send the object by reference using a pointer type, as illustrated in the following function binding:
+
+[[[language=smalltalk
+FFITutorial >> myFunction: aStructure [
+  ^ self ffiCall: #(void myFunction(MyStructure* aStructure))
+]
+]]]
+
+This poses the problem of ''moving objects''.
+Sending a Pharo-allocated external object by reference sends the ''address'' of that object to the function.
+The garbage collector can then decide to move that object in memory and change its address.
+However, since the garbage collector has no knowledge about the C library, it cannot determine how that address is used and it cannot update it.
+Moreover, there are no guarantees that concurrently the garbage collector and the C library access and modify the address at the same time.
+We will see in a future chapter that multi-threaded FFI weakens such guarantees even more.
+
+To cope with the problem of moving objects, the Pharo runtime supports ''pinned'' objects.
+Pinned objects are objects that can be reclaimed but not moved by the garbage collector, avoiding the problem of ''moving objects''. To pin an object in memory, we can use the message ==#pinInMemory==.
+
+[[[language=smalltalk
+myStructure := MyStructure new.
+myStructure pinInMemory.
+" ... use safely my structure ... "
+" nil it and PLUF, eventually the object will be discarded "
+myStructure := nil.
+]]]
+
+If eventually we decide to unpin the object, we can do so by using ==#unpinInMemory==.
+
+[[[language=smalltalk
+myStructure unpinInMemory.
+]]]
+
+For more fine grained control, external object also support the messages ==isPinnedInMemory== and ==setPinnedInMemory: aBoolean==. The former returns a boolean specifying wheter the object is pinned or not.
+The latter allows changing the pinned property with a boolean.
+
+@@note Remember that pinning objects in memory do not prevent the garbage collector to reclaim those objects.
+Any pinned yet unused object will be garbage collect and may create memory corruptions too.
