@@ -1,4 +1,4 @@
-!!! Callbacks
+!! Callbacks
 
 Many libraries implement functionalities that require to call to our code. 
 This is done to have more flexible libraries, to allow us to extend them or to provide special code for our use case.
