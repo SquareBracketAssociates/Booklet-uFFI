@@ -238,8 +238,7 @@ myStructure unpinInMemory.
 For more fine grained control, external object also support the messages ==isPinnedInMemory== and ==setPinnedInMemory: aBoolean==. The former returns a boolean specifying wheter the object is pinned or not.
 The latter allows changing the pinned property with a boolean.
 
-@@note Remember that pinning objects in memory do not prevent the garbage collector to reclaim those objects.
-Any pinned yet unused object will be garbage collect and may create memory corruptions too.
+@@note Remember that pinning objects in memory do not prevent the garbage collector to reclaim those objects. Any pinned yet unused object will be garbage collect and may create memory corruptions too.
 
 !!! Conclusion
 
