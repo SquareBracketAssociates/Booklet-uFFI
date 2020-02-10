@@ -5,13 +5,13 @@ We have studied in particular how to call functions, how basic types are marshal
 However, we have not yet discussed how those call\-out bindings and types should be structured in a project.
 
 This chapter presents several ways to organize library bindings.
-The first approach presented is the naïf-yet-simple ==single library object== that organises the bindings as a façade.
-In addition, uFFI allows to take a second approach exploiting the object-oriented nature of Pharo, in particular splitting the binding in different objects and encapsulating the data they manipulate.
-For this, we exploit the idea of ""external objects"" and ""opaque objects""
+The first approach presented is the naïf-yet-simple ''single library object'' that organises the bindings as a façade.
+In addition, uFFI allows one to take a second approach exploiting the object-oriented nature of Pharo, in particular splitting the binding in different objects and encapsulating the data they manipulate.
+For this, we exploit the concepts of ""external objects"" and ""opaque objects"".
 
 !!! First approach: single library façade object
 
-The first approach for organizing external library bindings is to follow the façade design pattern.
+The first approach for organizing external library bindings is to follow the Façade design pattern.
 In other words, there is a single object that concentrates all bindings and types of our library.
 This approach is useful to have an idea of our bindings with a naked eye, since all bindings are together.
 
@@ -38,7 +38,7 @@ FFITutorial >> ffiLibrary [
 ]
 ]]]
 
-When we choose to use the façade pattern for our bindings, uFFI provides a convenience behaviour: for all subclasses of ==FFILibrary==, the method ==ffiLibrary== returns ==self==:
+When we choose to use the Façade pattern for our bindings, uFFI provides a convenience behaviour: for all subclasses of ==FFILibrary==, the method ==ffiLibrary== returns ==self==:
 
 [[[language=smalltalk
 FFILibrary >> ffiLibrary [
@@ -51,7 +51,7 @@ By using this pattern, the library object is not only the object that knows how 
 
 !!!! Redefining ==MyLibC== as a façade
 
-Following the pattern explained above, we can now turn our example library ==MyLibC== from the first chapter into a façade, as follows:
+Following the pattern explained above, we can now turn our example library ==MyLibC== from the first chapter into a Façade, as follows:
 
 [[[language=smalltalk
 FFILibrary subclass: #MyLibC
@@ -93,11 +93,11 @@ As the reader may see, this approach's is the strongest when we are binding a sm
 The main advantage is that the entire binding can be understood by taking a look at a single class.
 However, as soon as bindings grow in complexity, we need to re-structure and refactor our bindings into different objects, as we will see in the following sections.
 
-!!! Extracting Behaviour into Objects
+!!! Extracting behaviour into objects
 
 The ffi library façade object may become a big god object when the library we are binding is big or complex.
 To cope with this inherent complexity, uFFI provides several mechanisms to extract FFI call\-outs into objects.
-""External objects"" have special marshalling rules which combined with ==self== arguments allow us to desing nice object-oriented APIs.
+""External objects"" have special marshalling rules which combined with ==self== arguments allow us to design nice object-oriented APIs.
 Also, uFFI provides support for ""Opaque objects"", which are external objects whose internal implementation is not exposed by the ffi library.
 
 !!!! External objects marshalling rules
@@ -106,9 +106,9 @@ External objects are uFFI objects representing objects from the external library
 We have already seen several external objects such as structures, unions and enumerations, which require creating subclasses of ==FFIStructure==, ==FFIUnion== or ==FFIEnumeration== respectively.
 In the previous examples we have also seen that we can use objects of those types by using the class name as argument names.
 This is possible because special marshalling rules exist for these objects:
-- The instances of uFFI external objects are normal Pharo objects, which internally reference some C object through a ==handle==.
-- When a uFFI external object is sent as argument, uFFI marshalls the external object to its ==handle==
-- when a uFFI external object is expected as return value, uFFI assumes the function return value is a pointer and allocates the corresponding external object with that pointer as ==handle== 
+- The instances of uFFI external objects are normal Pharo objects, which internally reference some C object through a ''handle''.
+- When a uFFI external object is sent as argument, uFFI marshalls the external object to its handle.
+- When a uFFI external object is expected as return value, uFFI assumes the function returned value is a pointer and allocates the corresponding external object with that pointer as handle.
 
 Consider the example of the previous example that defines a fraction structure both in C:
 
@@ -176,7 +176,7 @@ FFITutorial new fractionToDouble: aFraction handle.
 
 External object types can be used as return values of functions too.
 Consider the following C function that creates a fraction struct and its uFFI binding.
-Using ==FractionStructure== as return type of our binding, we tell uFFI to take the pointer returned from the function and create a ==FractionStructure== with that pointer as ==handle==.
+Using ==FractionStructure== as return type of our binding, we tell uFFI to take the pointer returned from the function and to create a ==FractionStructure== with that pointer as handle.
 
 [[[language=c
 fraction* make_fraction(int numerator, int denominator){
@@ -197,7 +197,7 @@ FFITutorial new fractionToDouble: aFraction.
 >>> 5.714285714285714
 ]]]
 
-As with arguments, external object return types is actually a uFFI syntax sugar for the following (again not so nice) binding.
+As with arguments, external object return type is actually a uFFI syntax sugar for the following (again not so nice) binding.
 This binding makes use of a pointer with ==void*== return type and manually initializes structure from it, coupling itself with the internals of uFFI.
 
 [[[language=smalltalk
@@ -220,7 +220,7 @@ aFraction asDouble.
 >>> 5.714285714285714
 ]]]
 
-A naïve, yet working, implementation of such binding requires to move our already-existing methods to the FractionStructure class:
+A naïve, yet working, implementation of such binding requires to move our already-existing methods to the ==FractionStructure== class:
 
 [[[language=smalltalk
 FractionStructure >> asDouble [
@@ -242,12 +242,15 @@ FractionStructure >> asDouble [
 ]
 ]]]
 
+
+@@note stephane I found it a bit difficult to extract the essence of external objects.
+
 !!! Opaque Objects
 
-Lots of libraries hide their internal representation by using opaque data-types.
+Many libraries hide their internal representation using opaque data-types.
 An opaque data-type is data-type whose internal representation is not exposed to us.
-We can see it as a structure which fields are not visible to us, the point beign that it may not be a structure.
-Libraries using such data-types allow only to create values of such types and manipulate them through their functions, which renders an API similar to encapsulated objects.
+We can see it as a structure which fields are not visible to us, the point being that it may not be a structure.
+Libraries using such data-types allow one to only create values of such types and manipulate them through their functions, which renders an API similar to encapsulated objects.
 uFFI provides support for opaque objects through the ==FFIOpaqueObject== class.
 
 !!!! Defining an opaque type
@@ -303,7 +306,7 @@ OpaqueFraction >> toFloat [
 !!! Conclusion
 
 In this chapter we have seen two different strategies for mapping external libraries: façades and external objects.
-Façades are the simpler approach, and pretty straight forward for simple or small libraries: they are a god-like objects containing all the call\-out definitions of our bindings.
+Façades are the simplest approach, and pretty straightforward for simple or small libraries: they are a god-like objects containing all the call\-out definitions of our bindings.
 External objects allow us to distribute our bindings in a more object-oriented fashion, putting the behaviour closer to the data, and exploiting encapsulation.
-Complex data-types, as defined in the previous chapters (unions, structures, enumerations), are external objects in this sence. Moreover, we saw that we can define ""complex data-types"" from opaque objects and type aliases.
+Complex data-types, as defined in the previous chapters (unions, structures, enumerations), are external objects in this sense. Moreover, we saw that we can define ""complex data-types"" from opaque objects and type aliases.
 These two strategies are not incompatible between them, so a same library mapping can mix-and-match and extract functions into external objects as they need it.
