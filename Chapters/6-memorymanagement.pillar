@@ -1,6 +1,6 @@
 !! uFFI and memory management
 
-Using uFFI requires developers to be concious about how memory is managed, because differently than C, Pharo is a garbage collected language.
+Using uFFI requires developers to be concious about how memory is managed, because differently than C, Pharo is a garbage-collected language.
 On the one hand, most C libraries will require users to make manual bookeeping of the memory they use by explicitly allocating or de-allocating memory.
 On the other hand, Pharo will automatically reclaim unused Pharo objects, or move them in the memory if so is required.
 
@@ -32,7 +32,7 @@ static int pre_allocated_variable = 5;
 
 Automatic memory is the memory allocated and released without explicit developer intervention.
 For example, space for the local variables of functions is automatically allocated when functions are called, and released when functions return.
-Automatic memory is generally managed by the ==stack==, i.e., extra space is allocated in the stack on a function call, and automatically released on function return because the extra space is popped from the stack to come back to the caller function.
+Automatic memory is generally managed by ""SD strange"" the ==stack==, i.e., extra space is allocated in the stack on a function call, and automatically released on function return because the extra space is popped from the stack to come back to the caller function.
 How much extra memory has to be allocated in the stack is generally calculated at compile time.
 
 [[[language=c
@@ -57,9 +57,10 @@ Memory dynamically allocated needs to be manually released, otherwise provoking 
 !!!! Objects in the Pharo Heap
 
 Pharo programs feature automatic memory management: all objects need to be explicitly allocated, and are automatically reclaimed by a garbage collector when they are not used anymore.
-Objects are allocated in Pharo by sending the ==#new== and ==#new:== messages to a class.
+Objects are allocated in Pharo by sending the ==new== and ==new:== messages to a class.
 Although there are several kind of classes in Pharo, for the purpose of this booklet we will concentrate on the two main kind of classes: fixed-size and variable-size classes.
-Fixed-size classes are classes with a fixed number of instance variables, instantiated with the message ==#new==.
+
+""Fixed-size"" classes are classes with a fixed number of instance variables, instantiated with the message ==new==.
 When the VM is instructed to instantiate one of these classes, it calculates the amount of memory required for the instance by looking at the class' instance variables.
 This is the case of most of the classes we create ourselves.
 For example, class ==Point== is a fixed-size class with two instance variables ==x== and ==y==.
@@ -73,9 +74,9 @@ Object subclass: #Point
 Point new
 ]]]
 
-Variable-size classes are classes whose instances have variable size.
+""Variable-size"" classes are classes whose instances have variable size.
 For example, the ==Array== class allows instances with 0 or many slots.
-These classes are instantiated through the ==#new: aSize== message, specifying the number of required slots at instantiation-time.
+These classes are instantiated through the ==new: aSize== message, specifying the number of required slots at instantiation-time.
 
 [[[language=smalltalk
 ArrayedCollection variableSubclass: #Array
@@ -86,7 +87,8 @@ ArrayedCollection variableSubclass: #Array
 Array new: 20.
 ]]]
 
-In contrast with C-managed memory,once instantiated, the life-cycle of a Pharo object is automatically managed by the virtual machine. For the purposes of this uFFI booklet, it is important to know two main properties of Pharo's garbage collector:
+In contrast with C-managed memory, once instantiated, the life-cycle of a Pharo object is automatically managed by the virtual machine.
+For the purposes of this uFFI booklet, it is important to know two main properties of Pharo's garbage collector:
 1. the storage of an object that is not used anymore will be automatically reclaimed;
 2. the position of an object may change during execution to avoid memory fragmentation.
 Although these two properties are nice from a Pharo perspective, they require special attention for a uFFI developer, as she has a foot on the Pharo world and a foot in the C world.
@@ -94,7 +96,7 @@ We will see in the following section how these properties affect programming wit
 
 !!! uFFI external objects in the C Heap
 
-External objects such as structures, arrays or unions, support a special kind of instantiation message: ==#externalNew==.
+External objects such as structures, arrays or unions, support a special kind of instantiation message: ==externalNew==.
 This message allocates external objects in the C heap, similar to what the ==malloc== function does.
 
 [[[language=smalltalk
@@ -114,7 +116,7 @@ Moreover, since the allocated memory exists outside of the control of Pharo's ga
 
 !!!! Memory leaks in the C Heap
 
-Allocating an external object using ==externalNew== allocates the required memory on the C heap and returns to our Pharo program an ==ExternalAddress== to that external memory.
+Allocating an external object using the message ==externalNew== allocates the required memory on the C heap and returns to our Pharo program an ==ExternalAddress== to that external memory.
 This ==ExternalAddress== is the only reference to the the external memory.
 
 @@note guille make a drawing!
@@ -123,14 +125,14 @@ In this setting, a memory leak can happen if our ==ExternalAddress== object is g
 
 Of course, an avid reader would ask herself ''why not freeing the memory of an external address as soon as it is garbage collected?''.
 However, such automatic release cannot be done blindly for all ==ExternalAddress==es.
-On the one hand, during the program execution an alias to the external memory can be created with a new ==ExternalAddress== object, leading to two ==ExternalAddress== with the same value.
+On the one hand, during the program execution an alias to the external memory can be created with a new ==ExternalAddress== object, leading to two ==ExternalAddress==es with the same value.
 In this situation, the first ==free== will succeed, while the second one will cause a program failure.
 On the other hand, not all ==ExternalAddress== objects contain address to externally allocated objects.
 Some ==ExternalAddress==es may have offsets, arbitrary pointers or other kind of reference that we should not ==free==.
 
 !!!! The uFFI auto-release mechanism
 
-For those external objects that we can automatically release on garbage collection, uFFI supports an ''auto-release'' feature which does what was described above: the memory of an external object is freed upon garbage collection. Using this feature requires a user to register an external object for auto-releasing by sending it the ==#autoRelease== message. By default, auto released external objects will just call ==free== on the reference they manage.
+For those external objects that we can automatically release on garbage collection, uFFI supports an ''auto-release'' feature which does what was described above: the memory of an external object is freed upon garbage collection. Using this feature requires a user to register an external object for auto-releasing by sending it the ==autoRelease== message. By default, auto released external objects will just call ==free== on the reference they manage.
 
 [[[language=smalltalk
 myStructure := MyStructure externalNew.
@@ -141,8 +143,8 @@ myStructure := nil.
 ]]]
 
 uFFI also supports extending the auto-release mechanism to implement our own.
-The first extension point is the class method ==#finalizeResourceData:== of external objects.
-User defined external objects can re-define ==#finalizeResourceData:== on the class side to control how its instances are deallocated. The default implementation looks like the following:
+The first extension point is the class method ==finalizeResourceData:== of external objects.
+User defined external objects can re-define the method ==finalizeResourceData:== on the class side to control how its instances are deallocated. The default implementation looks like the following:
 
 [[[language=smalltalk
 FFIExternalReference >> finalizeResourceData: handle [
@@ -152,13 +154,13 @@ FFIExternalReference >> finalizeResourceData: handle [
 ]
 ]]]
 
-Indeed, upon garbage collection ==#finalizeResourceData:== does not receive the (already garbage collected) external object but the handle it contained. Overriding this method allows users to, for example:
- - call library-specific free functions. For example, libraries such as SDL or libgit have their own free functions that correctly free their internal data structures
- - do aditional Pharo-side cleaning. For example, unregistering the handle from some internal registry
- - do logging
+Indeed, upon garbage collection ==finalizeResourceData:== does not receive the (already garbage collected) external object but the handle it contained. Overriding this method allows users to, for example:
+ - call library-specific free functions. For example, libraries such as SDL or libgit have their own free functions that correctly free their internal data structures,
+ - do aditional Pharo-side cleaning. For example, unregistering the handle from some internal registry, and 
+ - do logging.
  
-uFFI provides in addition a second extension point for auto-release: ==#resourceData==.
-The method ==#resourceData== allows to specify what data to store and use on ==#finalizeResourceData:==.
+uFFI provides in addition a second extension point for auto-release: ==resourceData==.
+The method ==resourceData== allows one to specify what data to store and use on ==finalizeResourceData:==.
 By default this method returns the handle of the external object.
 
 [[[language=smalltalk
@@ -167,12 +169,14 @@ FFIExternalReference >> resourceData [
 ]
 ]]]
 
-However, we can modify this method to have richer information at release time. For example, the SDL library bindings use as resource data not only the handle of its windows but also the window ID, useful for further image-side cleaning.
+@@note Stephane would be nice to get an example because this is not clear to me. 
+
+However, we can modify this method to have richer information at release time. 
+For example, the SDL library bindings use as resource data not only the handle of its windows but also the window ID, useful for further image-side cleaning.
 
 !!! uFFI external objects in the Pharo Heap
 
-We have seen in previous chapters that the different kind of external objects such as structures, arrays or unions, can be instantiated as normal objects using the ==#new== message.
-This makes external objects to be allocated in the Pharo heap.
+We have seen in previous chapters that the different kind of external objects such as structures, arrays or unions, can be instantiated as normal objects using the ==new== message. This makes external objects to be allocated in the Pharo heap.
 
 [[[language=smalltalk
 myStructure := MyStructure new.
@@ -209,7 +213,7 @@ In case the garbage collector decides to move that object or collect it, the C l
 If we are lucky enough, dangling pointers will crash right away and we will realize the cause of it: they will try to access an object that is not there anymore and produce an error.
 However, it may happen that the dangling pointer references seemingly valid data.
 In that case, the execution of the program will continue for some more time, probably reading and writing wrong values, thus corrupting the memory.
-Such are the cases worst to debug, because the cause of the bug is far away from the symptom we see.
+Such are the worst cases to debug, because the cause of the bug is far away from the symptoms we see.
 Moreover, there are no guarantees that concurrently the garbage collector and the C library access and modify the address at the same time.
 We will see in a future chapter that multi-threaded FFI weakens such guarantees even more.
 
@@ -219,7 +223,8 @@ To avoid such dangling pointers, no magic is available. Dangling pointers caused
 
 Objects in use will not be garbage collected but may be moved in memory.
 To cope with this problem of moving objects, the Pharo runtime supports ''pinned'' objects.
-Pinned objects are objects that can be reclaimed but not moved by the garbage collector, avoiding the problem of ''moving objects''. To pin an object in memory, we can use the message ==#pinInMemory==.
+Pinned objects are objects that can be reclaimed but not moved by the garbage collector, avoiding the problem of ''moving objects''. 
+To pin an object in memory, we can use the message ==pinInMemory==.
 
 [[[language=smalltalk
 myStructure := MyStructure new.
@@ -229,7 +234,7 @@ myStructure pinInMemory.
 myStructure := nil.
 ]]]
 
-If eventually we decide to unpin the object, we can do so by using ==#unpinInMemory==.
+If eventually we decide to unpin the object, we can do so by using ==unpinInMemory==.
 
 [[[language=smalltalk
 myStructure unpinInMemory.
@@ -238,7 +243,7 @@ myStructure unpinInMemory.
 For more fine grained control, external object also support the messages ==isPinnedInMemory== and ==setPinnedInMemory: aBoolean==. The former returns a boolean specifying wheter the object is pinned or not.
 The latter allows changing the pinned property with a boolean.
 
-@@note Remember that pinning objects in memory do not prevent the garbage collector to reclaim those objects. Any pinned yet unused object will be garbage collect and may create memory corruptions too.
+@@note Remember that pinning objects in memory do not prevent the garbage collector to reclaim those objects. Any pinned yet unused object will be garbage collected and may create memory corruptions too.
 
 !!! Conclusion
 
