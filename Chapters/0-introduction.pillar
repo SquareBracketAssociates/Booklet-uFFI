@@ -32,7 +32,6 @@ Without FFI, the option of reusing an external existing library would not exist,
 
 This booklet shows the Unified FFI framework for Pharo, or uFFI for short.
 The Pharo uFFI is an API framework that eases communication between Pharo code and code that follows a C\-style interface, making it possible to easily interact with external C libraries.  Given that \'calling functions\' is the ultimate objective of someone using an FFI, you will see that uFFI also helps with several other concerns, such as finding C function interfaces, transforming data between the Pharo world and the C world, accessing C structures, defining C\-to\-Pharo callbacks, and others.
-Pharo uFFI has been developed by E. Lorenzano, and has received many contributions over the years from Pharo\'s open source community.
 
 
 !!! How to read this booklet
@@ -45,3 +44,10 @@ Chapter 5 discusses how developers can enhance and organize their uFFI library b
 Chapter 6 discusses the issues of memory management between Pharo managed memory and C managed memory, important to avoid some issues in the long term.
 
 We invite those users already knowing FFI and/or uFFI to jump around and read on the need.
+
+!!! Acknowledgments
+
+Pharo uFFI has been originally developed by E. Lorenzano, and was based on many ideas on the NativeBoost framework by Igor Stasenko.
+uFFI has received many contributions over the years from Pharo\'s open source community.
+The main backend of uFFI up to this day is the FFI implementation of the OpenSmalltalk VM, with contributors such as Eliot Miranda.
+This booklet was mainly written by Guille Polito and Pablo Tesone, with extensive reviews and edits from Stéphane Ducasse and Ted Brunzie.
