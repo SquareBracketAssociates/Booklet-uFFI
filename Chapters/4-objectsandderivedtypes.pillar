@@ -104,13 +104,25 @@ Also, uFFI provides support for ""Opaque objects"", which are external objects w
 
 External objects are uFFI objects representing objects from the external library.
 We have already seen several external objects such as structures, unions and enumerations, which require creating subclasses of ==FFIStructure==, ==FFIUnion== or ==FFIEnumeration== respectively.
-In the previous examples we have also seen that we can use objects of those types by using the class name as argument names.
-This is possible because special marshalling rules exist for these objects:
-- The instances of uFFI external objects are normal Pharo objects, which internally reference some C object through a ''handle''.
-- When a uFFI external object is sent as argument, uFFI marshalls the external object to its handle.
-- When a uFFI external object is expected as return value, uFFI assumes the function returned value is a pointer and allocates the corresponding external object with that pointer as handle.
+uFFI external objects are normal Pharo objects wrapping an external address, hold in a ''handle'' instance variable.
+This ''handle'' instance variable is defined in ==ExternalObject== the common superclass of all external objects.
 
-Consider the example of the previous example that defines a fraction structure both in C:
+[[[language=smalltalk
+Object subclass: #ExternalObject
+  instanceVariableNames: 'handle'
+  classVariableNames: ''
+  package: 'FFI-Kernel'
+]]]
+
+In the previous examples we have also seen that we can use external objects in our callouts by specifying their class name.
+Using external objects in call\-outs is possible because uFFI defines special marshalling rules for such objects.
+- When a uFFI external object is sent as argument, uFFI will use its ''handle'' in the callout, thus using the actual memory pointer.
+- When a uFFI external object is expected as return value, uFFI expects that the returned value is a pointer and it instantiates an external object of the specified type setting that pointer as ''handle''.
+
+!!!! An example of external object marshalling
+
+To study how marshalling of external objects work, we will re-introduce the fraction example from the last chapter.
+Consider the fraction structure both in C:
 
 [[[language=c
 typedef struct
@@ -140,7 +152,7 @@ FractionStructure class >> fieldsDesc [
 ]
 ]]]
 
-!!!! Marshalling external object arguments: an example
+!!!! Marshalling external object arguments
 
 As an example let's consider the ==fraction_to_double== from before and its usage below:
 
@@ -172,7 +184,7 @@ FFITutorial new fractionToDouble: aFraction handle.
 >>> 5.714285714285714
 ]]]
 
-!!!! Marshalling external object return values: an example
+!!!! Marshalling external object return values
 
 External object types can be used as return values of functions too.
 Consider the following C function that creates a fraction struct and its uFFI binding.
@@ -235,15 +247,11 @@ FractionStructure >> fractionToDouble: aFraction [
 However, uFFI allows us to enhance our bindings even further, combining external objects with ==self== arguments in our call\-outs.
 Indeed, our methods ==asDouble== and ==fractionToDouble:== can be merged in a single one using ==self== as a literal argument of the function.
 
-@@note guille >> does setting the type to ==self== pointers work? test-it!
 [[[language=smalltalk
 FractionStructure >> asDouble [
   ^ self ffiCall: #(double fraction_to_double(FractionStructure *self))
 ]
 ]]]
-
-
-@@note stephane I found it a bit difficult to extract the essence of external objects.
 
 !!! Opaque Objects
 
@@ -299,8 +307,6 @@ OpaqueFraction >> toFloat [
 	self ffiCall: #(float fraction_to_float (self))
 ]
 ]]]
-
-@@note guille >> what if the opaque is not a pointer but a struct like in the example? test-it.
 
 
 !!! Conclusion
