@@ -1,18 +1,13 @@
 !! Foreign Function Interface and Call\-Outs
 
-A Foreign Function Interface (FFI) is a programming language mechanism that allows software written in one language to use resources (functions and data structures) that were written in and compiled with a different language.  These \"foreign\" resources typically take the form of shared libraries, such as DLL files in Windows (or \'.so\' files in Linux and Mac) and can include run\-time services made available by your operating system.  A good example is a driver library provided by a vendor of a computer peripheral, such as a printer or a network card.
+This chapter presents a fair introduction to uFFI by introducing function call\-outs: calling out an external function.
+We start by defining a Pharo uFFI binding to a C function.
+This example will guide us to how uFFI manages to find and load libraries, and how it looks up functions in it.
+Finally, when executing the binding, the returned value should be transformed to a Pharo object.
+Such transformation is called marshalling.
 
-Code sharing and reuse via an FFI is fundamentally different from source code \"includes\", calls to IDE libraries, or messages sent to the base classes provided by your language\'s development environment.  In those cases, your compiler can link function calls and share structured data while making convenient assumptions about the object code interface (known as the ABI, or Application Binary Interface).  This is familiar programming\: We follow published APIs (Application Programming Interfaces) as we write our code, and the compiler takes care of the low\-level connections for us transparently.
-
-However, if the compiled resources we wish to link to were built with a different language (or even a different compiler of the same language), the bits and bytes may not line up properly when we push arguments, make calls, and retrieve results, due to the different standards that the other code\'s compiler followed when the borrowed code was produced.  In this case, more detailed bookkeeping must be followed by our language to make ABI translations and ensure that differences in issues such as data alignment, byte ordering, calling conventions, garbage collection, pointer references, and so forth are all accounted for.  Without this, we risk not only getting incorrect results \-\- we could crash our process (or even the operating system).
-
-While in theory FFI interfaces can be defined to link any pair of differing languages, most languages are designed to interact with libraries written in the C language.  This is because C has a long heritage and widespread use, and (importantly) C has a predictable, standardized way to compile functions and structures.  So with Pharo also choosing C as an FFI target we gain two major advantages\: first, by basing ourselves on such \"standard\" formats, we can build tools that simplify interoperability with an extensive array of existing C libraries.  Second, since nearly every other language is doing the same, we can simply join those mutual C\-standard ABIs together to form a bridge between different systems \-\- allowing us to program at the source level of a C API.
-
-This booklet shows one such FFI definition for Pharo\: the Unified FFI framework, or uFFI for short.
-
-The Pharo uFFI is an API framework that eases communication between Pharo code and code that follows a C\-style interface, making it possible to easily interact with external C libraries.  Given that \'calling functions\' is the ultimate objective of someone using an FFI, you will see that uFFI also helps with several other concerns, such as finding C function interfaces, transforming data between the Pharo world and the C world, accessing C structures, defining C\-to\-Pharo callbacks, and others.
-
-Pharo uFFI has been developed by E. Lorenzano, and has received many contributions over the years from Pharo\'s open source community.
+In the second part of this chapter, we refactor the initial example to extract the library into a ==FFILibrary== object.
+A library object can cope with platform independent library lookup and smarther library searches.
 
 !!! Calling a simple external function
 
