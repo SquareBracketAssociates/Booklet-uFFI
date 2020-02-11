@@ -119,9 +119,11 @@ Moreover, since the allocated memory exists outside of the control of Pharo's ga
 Allocating an external object using the message ==externalNew== allocates the required memory on the C heap and returns to our Pharo program an ==ExternalAddress== to that external memory.
 This ==ExternalAddress== is the only reference to the the external memory.
 
-@@note guille make a drawing!
++An External Address references an address outside the Pharo memory>­fil­e:/­/../_figures/external_address.pdf|w­idt­h=500+
 
 In this setting, a memory leak can happen if our ==ExternalAddress== object is garbage collected: the memory occupied by the ==ExternalAddress== object is reclaimed, but the memory in the C heap remains allocated since there was no call to ==free==.
+
++A garbage collected External Address creates a memory leak>­fil­e:/­/../_figures/leak.pdf|w­idt­h=500+
 
 Of course, an avid reader would ask herself ''why not freeing the memory of an external address as soon as it is garbage collected?''.
 However, such automatic release cannot be done blindly for all ==ExternalAddress==es.
@@ -129,6 +131,8 @@ On the one hand, during the program execution an alias to the external memory ca
 In this situation, the first ==free== will succeed, while the second one will cause a program failure.
 On the other hand, not all ==ExternalAddress== objects contain address to externally allocated objects.
 Some ==ExternalAddress==es may have offsets, arbitrary pointers or other kind of reference that we should not ==free==.
+
++Two External Address referencing the same address are an alias: freeing one makes the second invalid>­fil­e:/­/../_figures/alias.pdf|w­idt­h=500+
 
 !!!! The uFFI auto-release mechanism
 
@@ -209,6 +213,8 @@ Sending references to Pharo objects to external libraries introduces the problem
 A Pharo-allocated external object sent by reference sends the ''address'' of that object to the function.
 Such address is an unmanaged object address: it is supposed to reference an object, but since it is now on the C world, the garbage collector cannot update it in case the object is moved, and it cannot know if that address is in use.
 In case the garbage collector decides to move that object or collect it, the C library then finds itself using an address to a wrong object: a dangling pointer.
+
++A dangling pointer is created when an external address points to a garbage collected object>­fil­e:/­/../_figures/dangling_pointer.pdf|w­idt­h=500+
 
 If we are lucky enough, dangling pointers will crash right away and we will realize the cause of it: they will try to access an object that is not there anymore and produce an error.
 However, it may happen that the dangling pointer references seemingly valid data.
