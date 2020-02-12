@@ -163,8 +163,20 @@ Indeed, upon garbage collection ==finalizeResourceData:== does not receive the (
  - do aditional Pharo-side cleaning. For example, unregistering the handle from some internal registry, and 
  - do logging.
  
+[[[language=smalltalk
+MyExternalStructure >> finalizeResourceData: handle [
+   handle isNull ifTrue: [ ^ self ].
+   
+   "Logging the handle in the transcript for information"
+   ('Freed ', handle asString) traceCr.
+   
+   handle free.
+   handle beNull
+]
+]]]
+ 
 uFFI provides in addition a second extension point for auto-release: ==resourceData==.
-The method ==resourceData== allows one to specify what data to store and use on ==finalizeResourceData:==.
+The method ==resourceData== allows one to specify what data to store and send as argument on ==finalizeResourceData:==.
 By default this method returns the handle of the external object.
 
 [[[language=smalltalk
@@ -173,10 +185,27 @@ FFIExternalReference >> resourceData [
 ]
 ]]]
 
-@@note Stephane would be nice to get an example because this is not clear to me. 
+However, we can modify both methods to have richer information at the time the resource data is finalized.
+For example, the SDL library bindings use as resource data an Array containing both the handle of its windows and also the window ID.
+When the external object is garbage collected, the method ==#finalizeResourceData:== receives the stored array and can act on it, as in the following example.
 
-However, we can modify this method to have richer information at release time. 
-For example, the SDL library bindings use as resource data not only the handle of its windows but also the window ID, useful for further image-side cleaning.
+[[[language=smalltalk
+SDL_Window class >> resourceData [
+	^ {self getHandle. self windowID }
+]
+
+SDL_Window class >> finalizeResourceData: aTuple [
+  | handle windowId |
+	
+  handle := aTuple first.
+  handle isNull ifTrue: [ ^ self ].
+
+	windowId := aTuple second.
+  OSSDL2Driver current unregisterWindowWithId: windowId.	
+  self destroyWindow: handle.
+  handle beNull
+]
+]]]
 
 !!! uFFI external objects in the Pharo Heap
 
