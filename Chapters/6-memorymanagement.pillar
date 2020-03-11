@@ -1,14 +1,14 @@
 !! uFFI and memory management
 
-Using uFFI requires developers to be concious about how memory is managed, because differently than C, Pharo is a garbage-collected language.
-On the one hand, most C libraries will require users to make manual bookeeping of the memory they use by explicitly allocating or de-allocating memory.
-On the other hand, Pharo will automatically reclaim unused Pharo objects, or move them in the memory if so is required.
+Using uFFI requires developers to be conscious about how memory is managed, because differently than C, Pharo is a garbage-collected language.
+On the one hand, most C libraries will require users to make manual bookkeeping of the memory they use by explicitly allocating or de-allocating memory.
+On the other hand, Pharo will automatically reclaim unused Pharo objects, or move them in the memory if required.
 
-Binding developers need to be extra careful when design their bindings to manage these differences.
+Binding developers need to be extra careful when designing their bindings to manage these differences.
 Failing to do so will produce many funny effects such as memory leaks that are hard to detect and incorrect memory accesses.
 
 In this chapter we re-visit how external objects are allocated (and de-allocated) in both the Pharo and the C memory.
-We see the case of Pharo objects sent by reference to C libraries, and we introduce the concept of ""pinned objects"": objects that are not be moved by the garbage collector, yet are still garbage collected.
+We see the case of Pharo objects sent by reference to C libraries, and we introduce the concept of ""pinned objects"": objects that are not moved by the garbage collector, yet are still garbage collected.
 Finally, we introduce uFFI auto-released objects: Pharo external objects that will automatically release their C counterpart when they are garbage collected.
 
 
@@ -45,7 +45,7 @@ void some_function(){
 Finally, dynamic memory is the memory that cannot be statically calculated, so programs explicitly allocate and reclaim it.
 Dynamic memory is manipulated through system libraries, for example with the functions ==malloc== and ==free==.
 This kind of memory is said to be stored in the ""heap"", since the memory allocated by the system is usually organized with a heap data-structure.
-Memory dynamically allocated needs to be manually released, otherwise provoking potential memory leaks. 
+Memory dynamically allocated needs to be manually released, otherwise provoking potential memory leaks.
 
 [[[language=c
   //Allocate 17 bytes and grab a pointer to that memory region
@@ -70,7 +70,7 @@ Object subclass: #Point
   instanceVariableNames: 'x y'
   classVariableNames: ''
   package: 'Kernel-BasicObjects'
-    
+
 Point new
 ]]]
 
@@ -83,7 +83,7 @@ ArrayedCollection variableSubclass: #Array
   instanceVariableNames: ''
   classVariableNames: ''
   package: 'Collections-Sequenceable-Base'
-    
+
 Array new: 20.
 ]]]
 
@@ -160,21 +160,21 @@ FFIExternalReference >> finalizeResourceData: handle [
 
 Indeed, upon garbage collection ==finalizeResourceData:== does not receive the (already garbage collected) external object but the handle it contained. Overriding this method allows users to, for example:
  - call library-specific free functions. For example, libraries such as SDL or libgit have their own free functions that correctly free their internal data structures,
- - do aditional Pharo-side cleaning. For example, unregistering the handle from some internal registry, and 
+ - do aditional Pharo-side cleaning. For example, unregistering the handle from some internal registry, and
  - do logging.
- 
+
 [[[language=smalltalk
 MyExternalStructure >> finalizeResourceData: handle [
    handle isNull ifTrue: [ ^ self ].
-   
+
    "Logging the handle in the transcript for information"
    ('Freed ', handle asString) traceCr.
-   
+
    handle free.
    handle beNull
 ]
 ]]]
- 
+
 uFFI provides in addition a second extension point for auto-release: ==resourceData==.
 The method ==resourceData== allows one to specify what data to store and send as argument on ==finalizeResourceData:==.
 By default this method returns the handle of the external object.
@@ -196,12 +196,12 @@ SDL_Window class >> resourceData [
 
 SDL_Window class >> finalizeResourceData: aTuple [
   | handle windowId |
-	
+
   handle := aTuple first.
   handle isNull ifTrue: [ ^ self ].
 
 	windowId := aTuple second.
-  OSSDL2Driver current unregisterWindowWithId: windowId.	
+  OSSDL2Driver current unregisterWindowWithId: windowId.
   self destroyWindow: handle.
   handle beNull
 ]
@@ -258,7 +258,7 @@ To avoid such dangling pointers, no magic is available. Dangling pointers caused
 
 Objects in use will not be garbage collected but may be moved in memory.
 To cope with this problem of moving objects, the Pharo runtime supports ''pinned'' objects.
-Pinned objects are objects that can be reclaimed but not moved by the garbage collector, avoiding the problem of ''moving objects''. 
+Pinned objects are objects that can be reclaimed but not moved by the garbage collector, avoiding the problem of ''moving objects''.
 To pin an object in memory, we can use the message ==pinInMemory==.
 
 [[[language=smalltalk
