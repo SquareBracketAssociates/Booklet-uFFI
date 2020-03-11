@@ -1,6 +1,6 @@
 # A booklet on the FFI Pharo framework
 
-Superdraft now.
+This is a booklet presenting how to use the FFI engine of Pharo to access functions and librairies written in C. 
 
 [![Build status][badge]][travis]
 
