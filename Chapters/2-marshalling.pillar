@@ -1,6 +1,6 @@
 !! Marshalling, Types and Function Arguments
 
-In the last chapter we looked at the basics of FFI call\-outs to define a Pharo uFFI binding to a C function.
+In the last chapter, we looked at the basics of FFI call\-outs to define a Pharo uFFI binding to a C function.
 These first examples introduced the concepts of function lookup, library references, and marshalling of return values.
 However, the idea of marshalling is not specific to the transformation of return values from C to Pharo: it also involves the transformation of argument values from Pharo to C, and the sharing of values between the two environments.
 
@@ -11,7 +11,7 @@ This chapter finishes by presenting the different marshalling rules in uFFI for 
 
 !!! A First Function Argument
 
-Our previous ==clock()== example was the one of the simplest uFFI bindings possible, as it does not require passing any arguments, and because we could easily tweak the binding to map the return value to an unsigned integer.
+Our previous ==clock()== example was one of the simplest uFFI bindings possible, as it does not require passing any arguments, and because we could easily tweak the binding to map the return value to an unsigned integer.
 To understand how to deal with functions that require arguments, let\'s consider the C ==abs()== function, which receives an integer argument and returns its absolute value.
 As with ==clock()==, ==abs()== is another function in the standard C library, so we will continue using our ==FFITutorial== class to create its binding.  Its prototype is declared as follows:
 
@@ -21,7 +21,7 @@ int abs( int n );
 
 Creating a binding for such a function requires that we provide an ==int== argument in our binding \-\- specifying both type and value.
 To ease the construction of argument bindings, uFFI will attempt to match any parameter names in our calling method to corresponding function parameters that have the same names.
-In other words, we can define our binding for ==abs()== as a method with a single ==n== keyword argument as follows (remembering that our ==FFITutorial== class now conveniently provides uFFI with the correct C library):
+In other words, we can define our binding for ==abs()== as a method with a single ==n== keyword argument as follows (remembering that our ==FFITutorial== class now conveniently provides uFFI with the correct C library for us):
 
 [[[language=smalltalk
 FFITutorial class >> abs: n [
@@ -32,7 +32,7 @@ FFITutorial class >> abs: n [
 Creating this binding does not really add extra complexity to what we did in our previous examples.
 We create a simple method that uses the ==ffiCall:== message, providing it an array argument enclosing a copy of the function\'s prototype, just as we did before.  (And as with our earlier ==FFITutorial== class methods, we\'re assuming the continued use of our ==ffiLibrary== override to eliminate the need to add the ==library:== keyword).
 
-The part that\'s new here is the introduction of the ==n== parameter and its C type, but no additional work is needed on our part to transform the Pharo object to a C value.  Also notice that uFFI knows to distinguish the argument\'s declared ''type'' from its formal parameter ''name'', while simultaneously matching up the name with our Pharo method\'s formal argument.
+The part that\'s new here is the introduction of the ==n== parameter and its C type, but no additional work is needed on our part to transform the Pharo object to a C value.  Also notice that uFFI knows to distinguish the argument\'s declared ''type'' from its formal parameter ''name'', while simultaneously matching up the name with our Pharo method\'s argument.
 
 We might even rename the parameter to use a more Pharo\-''ish'' naming style, such as \"==anInteger==\"\:
 
@@ -62,11 +62,11 @@ This ''representation mismatch'' requires that the uFFI transform ==SmallInteger
 - A Pharo ==SmallInteger== value transformed to a C value needs to be logically shifted to the right, ==2r101 >> 1==, transforming ==2r101== to ==2r10==.
 - A C integer value (representable in 31/61 bits or less) transformed to a Pharo ==SmallInteger== needs to be shifted to the left and incremented, ==(2r10 << 1) + 1==, transforming ==2r10== to ==2r101==.
 
-Each type\-to\-type transformation has its own particular rule that uFFI follows to ensure that correct representation is always maintained.
+Each type\-to\-type transformation has its own particular rule that uFFI follows to ensure that the correct representation is always maintained.
 
 !!!! Pharo-to-C Demarshalling
 
-When demarshalling Pharo objects to C values, uFFI decides the transformation rule to use depending on two pieces of information.
+When demarshalling Pharo objects to C values, uFFI decides which transformation rule to use depending on two pieces of information.
 First, it considers the concrete type of the Pharo object, ''its class''.
 Second, it considers the C type defined in the function binding as the target transformation type.
 At run time, when the binding method is executed, uFFI reads the type of the Pharo argument and transforms the argument object into the indicated C type representation (if possible), performing a type cast/coercion as necessary.
@@ -99,7 +99,7 @@ FFITutorial abs: SmallInteger maxVal * -10.
 => Error: Could not coerce arguments
 ]]]
 
-- Pharo floats, when provided for C ==int== arguments, will be truncated (mathematically) to produce an integer\:
+- Pharo floats, when provided as C ==int== arguments, will be truncated (mathematically) to produce an integer\:
 
 [[[language=smalltalk
 FFITutorial abs: Float pi.
@@ -118,7 +118,7 @@ FFITutorial abs: SmallInteger maxVal * Float pi.
 => 2007355392  "in 64-bit Pharo images"
 ]]]
 
-- Pharo objects that are incompatible with C ==int== type are rejected, and an exception is thrown\:
+- Pharo objects that are incompatible with the C ==int== type are rejected, and an exception is thrown\:
 
 [[[language=smalltalk
 FFITutorial abs: Object new.
@@ -128,7 +128,7 @@ FFITutorial abs: Object new.
 !!!! C-to-Pharo Marshalling
 
 A similar\-yet\-different story happens when marshalling C values to Pharo objects.
-In this case uFFI decides the marshalling rule based on just the specified return type.
+In this case, uFFI decides the marshalling rule based on just the specified return type.
 At run time, when the binding method is executed and the C function returns, uFFI transforms the (expected) return value into the closest Pharo type corresponding to the declared C type.
 
 For example, a delared ==int== return type will cause uFFI to interpret the returned value as either a ==SmallInteger== or ==Large(Positive\|Negative)Integer==, depending on the size and sign of the data; a C
@@ -204,7 +204,7 @@ So while writing library bindings with uFFI is fun and simple, the binding devel
 !!! Function Argument Bindings
 
 We have seen in the earlier introductory example how to use method parameters as arguments when writing function bindings.
-In this section we explore other ways to define arguments \-\- in particular literal objects, instance variables, and class variables.
+In this section, we explore other ways to define arguments \-\- in particular literal objects, instance variables, and class variables.
 
 !!!! Literal Object Arguments
 
@@ -224,9 +224,9 @@ FFITutorial class >> absMinusFortyTwo [
 
 This approach is convenient when we want both ==abs:== and ==absMinusFortyTwo== to be exposed to our user.
 It certainly benefits from the binding being declared only once, allowing us to isolate potential marshalling mistakes in a single location.
-However, we may not want to couple to the ==abs:== method directly, as we\'re doing in this case.  Instead, we want to provide ==\-42== directly to the C ==abs()== function, as a literal (canned-in) value.
+However, we may not want to send the Pharo ==abs:== message, as we\'re doing in this case.  Instead, we want to provide ==\-42== directly to the C ==abs()== function, as a literal (i.e. canned) value.
 
-To provide for this, uFFI supports the use of literal arguments in C function bindings.  Rather than using a method parameter as argument in the function binding, we can specify a literal value following its C type declaration\:
+To provide for this, uFFI supports the use of literal arguments in C function bindings.  Rather than passing a method argument to the function binding, we can specify a literal value following its C type declaration\:
 
 [[[language=smalltalk
 FFITutorial class >> absMinusFortyTwo [
@@ -237,14 +237,14 @@ FFITutorial class >> absMinusFortyTwo [
 Notice that we don\'t just type in a Pharo integer for the expected argument and expect uFFI to perform implicit type conversion.  Even literal values such as integers must be preceded by a C type declaration (==int== in the above example).
 This type information is needed by uFFI to correctly determine how to transform the Pharo integer, given the many different forms in which it could be rendered.
 
-Consider that in the case of C integers, a number can be signed or unsigned, and can occupy different sizes such as 8, 16, 32, or 64 bits.  Pharo can\'t guess; the C function expects a specific type to be provided, and the Pharo object containing the value doesn\'t reflect this.  We have to explicitly \'type\' the literal when we type it in.
+Consider that, in the case of C integers, a number can be signed or unsigned, and can occupy different sizes such as 8, 16, 32, or 64 bits.  Pharo can\'t guess; the C function expects a specific type to be provided, and the Pharo object containing the value doesn\'t reflect this.  We have to be explicit about the literal's \'type\'.
 
 Most of the literals accepted in Pharo code are accepted in uFFI call-outs too: e.g., integers, floats, strings, arrays.
 We will present more detail about the different data types and how they are marshalled by uFFI in a subsequent section.
 
 !!!! Class Variables
 
-In the method above we used a literal number as an argument in a uFFI call\-out. Although handy, literal numbers fall into the category of so\-called \"magic numbers\"\: Embedded literals in code that offer no explanation of where they came from, why they were chosen, or how they were calculated.  (These are distinguished from ''manifest constants'', which are more-or-less self-explanatory, such as using ''pi'' in angle calculations or \'2\' when we need to divide a quantity in half.)
+In the method above, we used a literal number as an argument in a uFFI call\-out. Although handy, literal numbers fall into the category of so\-called \"magic numbers\"\: Embedded literals in code that offer no explanation of where they came from, why they were chosen, or how they were calculated.  (These are distinguished from ''manifest constants'', which are more-or-less self-explanatory, such as using ''pi'' in angle calculations or \'2\' when we need to divide a quantity in half.)
 
 Embedding magic numbers in methods is a ''code smell'' and should be avoided.  One way to handle these kinds of values is to parameterize them\: assign them names, usually as a variable or named constant.  C libraries often define such constants using ==\#define== pre-processor statements such as\:
 
@@ -313,11 +313,11 @@ When such a call-out is executed, the value of the instance variable is demarsha
 The use of instance variables in uFFI bindings can come in handy when defining object-oriented APIs to C libraries.
 Since objects hold values as well as define behaviors, they can both encapsulate the state required to perform the uFFI calls while masking the call-outs as normal messages.
 
-So we see that the syntax is essentially the same as what we saw for class variables.  Note that we can can even hold the function name in a Pharo variable\:
+We see that the syntax is essentially the same as what we saw for class variables.  Note that we can can even hold the function name in a Pharo variable\:
 
 [[[language=smalltalk
 MyClass >> doSomething [
-	^ self ffiCall: #( int myFunction ( int myInstanceVariable ) ) library: LibC
+	^ self ffiCall: #( int myFunctionNameInstVar ( int myArgumentInstVar ) ) library: LibC
 ]
 ]]]
 
@@ -336,7 +336,7 @@ SmallInteger >> absoluteValue [
 ]
 ]]]
 
-Using ==self== as an argument has several benefits beyond these uses as integers.
+Using ==self== as an argument has many benefits beyond this simple example.
 In combination with complex types such as C ==struct==s and opaque objects, using ==self== as argument is a powerful tool for writing OOP\-flavored bindings to C libraries.
 
 !!! Marshalling C Pointers
@@ -349,7 +349,7 @@ In contrast to Pharo, many function arguments in C are, by default, \"passed by 
 For example, every time we send an integer or a float as an argument to a function, its value is ''copied'' (pushed onto the C stack) prior to calling the function.
 Passing by value, while trivial for simple types such as numbers, usually demands more consideration when dealing with complex ''mutable'' types, such as arrays and structures.  If an invoked function were to modify a ''copy'' of data received as an argument, the original value held by the caller would remain unmodified \-\- which might not be the intended outcome.
 
-Therefore, in addition to ''pass by value'', C too supports passing arguments by reference, in this case using ""pointers"" (a C type that equates to an address in memory).
+Therefore, in addition to ''pass by value'', C also supports passing arguments by reference, in this case using ""pointers"" (a C type that equates to an address in memory).
 Use of a C pointer as an argument is often denoted explicitly in function declarations by prefixing the ==*== character to a variable name (although some C types are implicitly of pointer type).
 
 For example, a function ==foo()== that receives an ==int== pointer as an argument and returns a ==char== pointer will have a function declaration similar to the following\:
@@ -359,7 +359,7 @@ char *foo ( int *arg );
 ]]]
 
 uFFI supports pointers by introducing a new kind of object: ==ExternalAddress==.
-==ExternalAddress==es are objects that represent memory addresses, thus their possible values range from ==NULL== to the maximum possible address the host operating system allows, either 2^32 or 2^64 for 32-bit or 64-bit systems, respectively.
+==ExternalAddress==es are objects that represent memory addresses, thus their possible values range from ==NULL== to the maximum possible address the host operating system allows, either 2^32 (for 32-bit) or 2^64 (for 64-bit systems), respectively.
 
 !!!! Obtaining an ==ExternalAddress==
 
@@ -372,7 +372,7 @@ The C declaration of such function reads as follows (from the ==libc== manual)\:
 void *malloc( size_t size );
 ]]]
 
-We only need create a uFFI binding to it by copy-pasting the declaration as follows\:
+To create a uFFI binding to it, we only need to copy-paste the declaration as follows\:
 
 [[[language=smalltalk
 FFITutorial class >> malloc: aSize [
@@ -380,7 +380,7 @@ FFITutorial class >> malloc: aSize [
 ]
 ]]]
 
-Notice that this function returns a \"generic pointer\", of type ==void *== (meaning, what it points to in memory is ''untyped''). In uFFI, this is marshalled to a ==ExternalAddress== object.
+Notice that this function returns a \"generic pointer\", of type ==void *== (meaning, what it points to in memory is ''untyped''). In uFFI, this is marshalled to an ==ExternalAddress== object.
 In other words, our ==malloc()== binding yields an ==ExternalAddress== in return (if successful).
 
 For example, if we use the above binding to ask the system to allocate a buffer of 200 bytes for us, then on return we should have an address that points somewhere in the C heap\:
@@ -410,7 +410,7 @@ The declaration of ==free()== looks like this\:
 void free( void *ptr );
 ]]]
 
-As you might expect by now, uFFI supports pointer arguments by copying the C syntax for pointers to use as its notation in function bindings.  And as expected, copy-pasting a C function declaration is usually enough to create bindings to such functions\:
+As you might expect by now, uFFI supports pointer arguments by using C pointer syntax directly in function bindings.  And as expected, copy-pasting a C function declaration is usually enough to create bindings to such functions\:
 
 [[[language=smalltalk
 FFITutorial class >> free: ptr [
@@ -476,17 +476,17 @@ FFITutorial realloc: nil toSize: 200.
 
 !!! Type Marshalling Rules for Basic Objects
 
-All Pharo basic objects (integer, floats, strings, booleans, characters) are represented in memory differently in Pharo than in C, thus requiring special marshalling for each of them.
+In Pharo, basic objects (integer, floats, strings, booleans, characters) are represented in memory differently than in C, thus each requiring special marshalling.
 Moreover, not all values in one language are seamlessly representable in the other.
-For example, while integers in Pharo can have arbitrary precision and will be enlarged on demand, integers in C do overflow and will be simply truncated.
-In this subsection we go over all pharo basic types and we explore all these rough corners the FFI developer should be aware of.
+For example, while integers in Pharo can have arbitrary precision and will be enlarged on demand, integers in C ''overflow'' and will simply be truncated.
+In this subsection, we go over all Pharo's basic types and explore all these rough corners of which a FFI developer should be aware.
 
 !!!! Integers
 
 Integer types in C such as ==short==, ==int==, their long and unsigned versions, have fixed size.
-For example, ==int=='s are 32 bits long in 32bit machines and 64 bits long in 64bit machines.
+For example, ==int=='s are 32 bits long on 32-bit machines and 64 bits long on 64-bit machines.
 This means that values that cannot be represented in that size will be truncated to fit.
-To illustrate the behaviour, consider the following two C functions: they initialize an integer value with the maximum possible value they can store, and then add one to it.
+To illustrate this behaviour, consider the following two C functions: they initialize an integer value with the maximum possible value they can store, and then add one to it.
 
 [[[language=c
 void overflowing_int(){
@@ -509,12 +509,12 @@ Overflowing unsigned int: 4294967295 + 1 = 0
 
 We observe that the results of executing such functions are (when overflows are admitted/defined behaviour by the compiler) mathematically incorrect.
 To explain it briefly, such behavior is due to the fact that C integers (and other numeric types) do not entirely follow mathematical semantics, but are instead tightly coupled to the semantics and limitations of the underlying machine and processor.
-We will refrain ourselves from further discussing the semantics of C, since they are outside the scope of this booklet, and they may vary depending on the C standard and compiler used.
+We will refrain from further discussing the semantics of C, since they are outside the scope of this booklet, and may vary depending on the C standard and compiler used.
 
 On the other hand, integer values in Pharo have variable size.
-Indeed, Pharo integers storage size is dynamically decided to fit the stored value.
+Indeed, Pharo integers' storage size is dynamically adjusted to fit the stored value.
 For example, the following piece of code shows how we can obtain the maximum ==SmallInteger== value, and that adding one to it yields a ==LargePositiveInteger==.
-The former class is used to represent integers that fit integers up to a fixed size (of 31 bits in 32bit machines and 61 bits in 64bit machines), while the latter is used to represent integers that require more storage.
+The former class is used to represent integers up to a fixed size (of 31 bits in 32-bit machines and 61 bits in 64-bit machines), while the latter is used to represent integers that require more storage.
 
 [[[language=smalltalk
 (SmallInteger maxVal + 1) class
@@ -528,7 +528,7 @@ While uFFI value marshalling takes care of most conversions (e.g., representatio
 !!!! Floating Point Numbers
 
 Floating point numeric types in C such as ==float== and ==double== are also restricted by the limitations of the underlying hardware.
-Since the hardware is not infinite, floating point numbers cannot be represented with infinite precision, being in fact the opposite: floating point numbers see their precision limited.
+Since hardware is not infinite, floating point numbers cannot be represented with infinite precision.
 The C type ==float== is a precision floating point number, while ==double== is a double precision floating point number.
 The following example C code illustrates how precision is lost: it first stores a floating point number in variables of type ==float== and ==double==, it then prints it using the ==printf== function and requiring a precision of 18 digits after the decimal dot.
 
@@ -543,9 +543,9 @@ void printFloatingPointNumbers(){
 }
 ]]]
 
-The example above prints the following in the standard output.
+The example above prints the following to standard output.
 Although we asked for a precision of 18 digits, and 18 digits were printed to the stdout, not all of those 18 digits correspond to the original digits specified in our code.
-Moreover, we see that using a single precision type loses precision before than the one using double precision.
+Moreover, we see that using a single precision type loses more precision than does double precision.
 
 [[[
 Float is: 3.141592741012573242
@@ -565,26 +565,26 @@ This means that a ==char== value does not actually represent a character, but so
 And the actual character value of those bytes depend on how those bytes are actually interpreted.
 
 The reason for this is that the C programming language predates the nowadays broadly-used text encoding standards such as Unicode and its encoding formats such as utf-8 and utf-32.
-Historically, the ==char== type stores 1 byte values, and is used to store ascii character values.
+Historically, the ==char== type stored 1 byte values, and was used to store ascii character values.
 However, the ascii encoding is not sufficient to represent many languages which have more characters than can possibly fit in a single byte.
 
 On the other hand, Pharo represents characters with their unicode code point, i.e., a unique identifier assigned to each character by the unicode standard.
 Unicode codepoints are integer numbers that may not fit the typical single byte of the C ==char== type.
 
-The uFFI marshalling rules of characters is as follows:
-- A Pharo character sent as argument have their code point truncated and copied to the function argument.
+The uFFI marshalling rules for characters is as follows:
+- A Pharo character sent as argument has its code point truncated and copied to the function argument.
 - A ==char== return value is interpreted as a codepoint, and a Pharo Character with such codepoint is returned.
 
 However, care is needed with these conversions because the ==char== type is actually a numeric type, and it mismatches with the unicode codepoints within Pharo.
 This turns the manipulation of character values into a potential source of bugs.
-We recommend the FFI developer to carefully study how ==char== types are used in the used library.
-Several C libraries will interpret ==char== values as ascii values, but unicode code points only match ascii values up to 127.
+We recommend that FFI developers carefully study how ==char== types are used in each target library.
+Some C libraries interpret ==char== values as ascii values, but unicode code points only match ascii values up to 127.
 For example, while in ascii the euro character (€) is represented with the 0x80 value, its unicode code point is 0x20AC.
-Other libraries will use ==char== values to represent raw bytes encoding characters in one of its encodings such as utf-8.
+Other libraries use ==char== values to represent raw bytes, which will be processed later by an encoding such as utf-8.
 
 !!!! Booleans
 
-Since the C99 standard, C includes support for booleans with the ==bool== type, and its ==true== and ==false== values defined in the ==stdbool.h== header.
+Since the C99 standard, C includes support for booleans with the ==bool== type, and its ==true== and ==false== values are defined in the ==stdbool.h== header.
 Pharo booleans are transformed to C booleans seamlessly when using the ==bool== type in the FFI callout signature.
 
 [[[language=c
@@ -601,18 +601,17 @@ FFITutorial class >> printBoolean: b [
 
 !!! More Predefined Data Types
 
-uFFI includes a set of already defined data types. These data types are accessible to all the FFI libraries and call-outs.
-These data types represent all the data types defined in the C standard and some useful aliases. 
+uFFI includes a set of predefined data types that are accessible to all FFI libraries and call-outs.
+These data types represent all the data types defined in the C standard, as well as some useful aliases. 
 
-We will divide the data types in fixed-size types, aliases and ABI dependent types. 
-The fixed-size have the same size in all the platforms.
-The ABI dependent types may change their size depending of the running platform.
-Also, uFFI includes a set of useful aliases to ease the creation of FFI callout just by copying the function signature.
+We will categorize the data types as: fixed-size types, aliases and ABI dependent types. 
+The fixed-size have the same size in all the platforms, while the ABI dependent types may change their size depending on the running platform.
+Also, uFFI includes a set of useful aliases to ease the creation of FFI callouts by allowing a wider range of function signatures to simply be copy/pasted.
 
 !!!! Fixed Size Types
 
-uFFI includes a set of fixed size integer types. This types are platform independent.
-They came in two flavours: signed and unsigned.
+uFFI includes a set of fixed size integer types. These types are platform independent.
+They come in two flavours: signed and unsigned.
 
 |!Type 	|!Byte Size |!Signed|
 |int8	|	1 		|	Yes	|
@@ -628,7 +627,7 @@ They came in two flavours: signed and unsigned.
 
 !!!! Floating-point Types
 
-uFFI provides the data types for handling IEEE-754${footnote: https://en.wikipedia.org/wiki/IEEE_754}$ floating point data types. 
+uFFI also provides data types for handling IEEE-754${footnote: https://en.wikipedia.org/wiki/IEEE_754}$ floating point data types. 
 The following table presents the data-types usable in FFI bindings.
 
 |!Type 		|!IEEE 754 		|!Mantissa		|!Exponent		|!Common Name			|
@@ -637,15 +636,14 @@ The following table presents the data-types usable in FFI bindings.
 |float64	|	binary64	|	53 bits		|	11 bits		|Double Precision		|
 |float128	|	binary128	|	113 bits	|	15 bits		|Quadruple precision	|
 
-These types are correctly translated to a ==Float== instance in Pharo. 
-A ==Float== instance in Pharo has a precission equivalent to ==float64==.
+All of these types will be correctly translated to a ==Float== instance in Pharo, which has a precision equivalent to ==float64==.
 
-!!!! Platform Dependant Types
+!!!! Platform Dependent Types
 
-uFFI is designed to allow the developers to write code that is portable to different platforms.
-As there are types with sizes depending of the platform, uFFI implements the following platform dependant types.
+uFFI is designed to allow developers to write code that is portable across different platforms.
+As there are types with platform-dependent sizes, uFFI implements the following platform dependant types.
 
-This types are automatically handled correctly depending on the running platform.
+These types are automatically handled correctly depending on the running platform.
 
 |!Type		|32 bits size	| Windows (64 bits) | Linux (64 bits) 	| OS X (64 bits) |
 |size_t		|		4		|		8			|		8			|		8		 |
@@ -655,11 +653,10 @@ This types are automatically handled correctly depending on the running platform
 
 !!!! Aliases
 
-One of the nicest features of uFFI is the ability to copy and paste the definitions of the C Functions
-to implement the FFI calls. 
+One of the nicest features of uFFI is the ability to implement the FFI callouts by copy/pasting the definitions of C Functions. 
 
-To have a more extensive support for copying and pasting the definitions, uFFI includes a series of aliases
-from common used data types to uFFI types.
+To have more extensive support for copy/pasting definitions, uFFI includes a series of aliases
+mapping commonly used data types to uFFI types.
 
 The following table presents the integer aliases: 
 
@@ -694,13 +691,13 @@ Also there are aliases for floating point types:
 !!! Conclusion
 
 In this chapter we have studied the basics of uFFI call\-out arguments and their marshalling.
-The arguments of a function can be the the arguments of the method they are declared in, an instance variable, a class variable, self, or a literal Pharo object.
-Arguments should declare a type, so uFFI knows how to transform that object to a C equivalent.
-Failing in correctly declaring the type can lead to misbehaviours in an application due to incorrect transformations.
+The arguments of a function can be the arguments of the method they are declared in, instance variables, class variables, self, or Pharo literal objects.
+Arguments should declare a type, so uFFI knows how to transform that object into a C equivalent.
+Failing to correctly declare the type can lead to misbehaviours in an application due to incorrect transformation.
 
 Basic types covered by uFFI include integer values, floating point values, booleans, characters and pointers.
-Pointers are used through the special FFI class ==ExternalAddress==, and its special value ''NULL'' can be acquired with the ==null== class side message.
-Finally other basic types have special marshalling rules that apply when transforming Pharo values to C values.
-In particular we have seen that integers suffer from truncations and overflows in C, floating point numbers suffer from lose of precision, and characters in Pharo are interpreted as unicode code points while each C library can interpret characters as they please.
+Pointers are handled using the special uFFI class ==ExternalAddress==, and its special value ''NULL'' can be acquired with the ==null== class side message.
+Finally, other basic types have special marshalling rules for transforming Pharo values into C values, which need to be considered carefully.
+In particular, we have seen that integers can suffer truncations and overflows in C, floating point numbers may suffer from loss of precision, and characters in Pharo are interpreted as unicode code points while each C library can interpret characters as they please.
 
 The next chapter explores other data types that can be built from these basic data types: arrays, structures, enumerations and opaque objects.
