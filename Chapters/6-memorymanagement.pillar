@@ -1,20 +1,20 @@
 !! uFFI and memory management
 
-Using uFFI requires developers to be conscious about how memory is managed, because differently than C, Pharo is a garbage-collected language.
-On the one hand, most C libraries will require users to make manual bookkeeping of the memory they use by explicitly allocating or de-allocating memory.
-On the other hand, Pharo will automatically reclaim unused Pharo objects, or move them in the memory if required.
+Using uFFI requires developers to be conscious about how memory is managed, because, unlike C, Pharo is a garbage-collected language.
+On the one hand, most C libraries will require users to do manual bookkeeping of the memory they use by explicitly allocating or de-allocating memory.
+On the other hand, Pharo will automatically reclaim unused Pharo objects, or move them around in memory if required.
 
-Binding developers need to be extra careful when designing their bindings to manage these differences.
-Failing to do so will produce many funny effects such as memory leaks that are hard to detect and incorrect memory accesses.
+uFFI developers need to be extra careful to manage these differences when designing their bindings.
+Failing to do so will produce many bewildering effects such as incorrect memory accesses and memory leaks that are hard to detect.
 
-In this chapter we re-visit how external objects are allocated (and de-allocated) in both the Pharo and the C memory.
-We see the case of Pharo objects sent by reference to C libraries, and we introduce the concept of ""pinned objects"": objects that are not moved by the garbage collector, yet are still garbage collected.
+In this chapter we re-visit how external objects are allocated (and de-allocated) in both Pharo and C memory.
+We see the case of Pharo objects sent by reference to C libraries, and we introduce the concept of ""pinned objects"": objects that are guaranteed not to be moved in memory, yet are still garbage collected.
 Finally, we introduce uFFI auto-released objects: Pharo external objects that will automatically release their C counterpart when they are garbage collected.
 
 
-!!! Pharo vs C memory management: the basics
+!!! Pharo vs. C memory management: the basics
 
-Memory in Pharo and in C is managed in fundamentally different ways.
+Memory in Pharo and C is managed in fundamentally different ways.
 Pharo has automatic memory management where a garbage collector tracks used-objects, moves them around and periodically reclaims unused objects.
 C requires developers to manually manage their memory.
 This section introduces the difference between these two models, and finally introduces the subtleties of uFFI external objects which allow both of them.
@@ -32,7 +32,7 @@ static int pre_allocated_variable = 5;
 
 Automatic memory is the memory allocated and released without explicit developer intervention.
 For example, space for the local variables of functions is automatically allocated when functions are called, and released when functions return.
-Automatic memory is generally managed by ""SD strange"" the ==stack==, i.e., extra space is allocated in the stack on a function call, and automatically released on function return because the extra space is popped from the stack to come back to the caller function.
+Automatic memory is generally managed by ""SD strange"" the ==stack==, i.e., extra space is allocated in the stack on a function call, and automatically released on function return because the extra space is popped from the stack when coming back to the caller function.
 How much extra memory has to be allocated in the stack is generally calculated at compile time.
 
 [[[language=c
@@ -58,7 +58,7 @@ Memory dynamically allocated needs to be manually released, otherwise provoking 
 
 Pharo programs feature automatic memory management: all objects need to be explicitly allocated, and are automatically reclaimed by a garbage collector when they are not used anymore.
 Objects are allocated in Pharo by sending the ==new== and ==new:== messages to a class.
-Although there are several kind of classes in Pharo, for the purpose of this booklet we will concentrate on the two main kind of classes: fixed-size and variable-size classes.
+Although there are several kind of classes in Pharo, for the purpose of this booklet we will concentrate on the two main kinds of classes: fixed-size and variable-size classes.
 
 ""Fixed-size"" classes are classes with a fixed number of instance variables, instantiated with the message ==new==.
 When the VM is instructed to instantiate one of these classes, it calculates the amount of memory required for the instance by looking at the class' instance variables.
@@ -89,9 +89,9 @@ Array new: 20.
 
 In contrast with C-managed memory, once instantiated, the life-cycle of a Pharo object is automatically managed by the virtual machine.
 For the purposes of this uFFI booklet, it is important to know two main properties of Pharo's garbage collector:
-1. the storage of an object that is not used anymore will be automatically reclaimed;
-2. the position of an object may change during execution to avoid memory fragmentation.
-Although these two properties are nice from a Pharo perspective, they require special attention for a uFFI developer, as she has a foot on the Pharo world and a foot in the C world.
+1. The storage of an object that is not used anymore will be automatically reclaimed
+2. The position of an object may change during execution to avoid memory fragmentation
+Although these two properties are nice from a Pharo perspective, they require special attention for a uFFI developer, as she has one foot in the Pharo world and one foot in the C world.
 We will see in the following section how these properties affect programming with uFFI, and how Pharo and uFFI provide support to minimize the impact of these issues through auto-release and pinning.
 
 !!! uFFI external objects in the C Heap
@@ -111,13 +111,13 @@ myStructure := MyStructure externalNew.
 myStructure free.
 ]]]
 
-External allocation is useful when we want to have full control on how and when memory is allocated and deallocated.
+External allocation is useful when we want to have full control over how and when memory is allocated and deallocated.
 Moreover, since the allocated memory exists outside of the control of Pharo's garbage collector, external allocation avoids problems such as moving objects, explained later in this chapter.
 
 !!!! Memory leaks in the C Heap
 
 Allocating an external object using the message ==externalNew== allocates the required memory on the C heap and returns to our Pharo program an ==ExternalAddress== to that external memory.
-This ==ExternalAddress== is the only reference to the the external memory.
+This ==ExternalAddress== is the only reference to the external memory.
 
 +An External Address references an address outside the Pharo memory>../figures/external_address.pdf|w­idt­h=500+
 
@@ -125,18 +125,18 @@ In this setting, a memory leak can happen if our ==ExternalAddress== object is g
 
 +A garbage collected External Address creates a memory leak>../figures/leak.pdf|w­idt­h=500+
 
-Of course, an avid reader would ask herself ''why not freeing the memory of an external address as soon as it is garbage collected?''.
+Of course, an avid reader would ask ''why not free the memory of an external address as soon as it is garbage collected?''.
 However, such automatic release cannot be done blindly for all ==ExternalAddress==es.
-On the one hand, during the program execution an alias to the external memory can be created with a new ==ExternalAddress== object, leading to two ==ExternalAddress==es with the same value.
+On the one hand, during program execution an alias to the external memory can be created with a new ==ExternalAddress== object, leading to two ==ExternalAddress==es with the same value.
 In this situation, the first ==free== will succeed, while the second one will cause a program failure.
-On the other hand, not all ==ExternalAddress== objects contain address to externally allocated objects.
-Some ==ExternalAddress==es may have offsets, arbitrary pointers or other kind of reference that we should not ==free==.
+On the other hand, not all ==ExternalAddress== objects contain addresses to externally allocated objects.
+Some ==ExternalAddress==es may have offsets, arbitrary pointers or other kind of references that we should not ==free==.
 
 +Two External Address referencing the same address are an alias: freeing one makes the second invalid>../figures/alias.pdf|w­idt­h=500+
 
 !!!! The uFFI auto-release mechanism
 
-For those external objects that we can automatically release on garbage collection, uFFI supports an ''auto-release'' feature which does what was described above: the memory of an external object is freed upon garbage collection. Using this feature requires a user to register an external object for auto-releasing by sending it the ==autoRelease== message. By default, auto released external objects will just call ==free== on the reference they manage.
+For those external objects that we can automatically release on garbage collection, uFFI supports an ''auto-release'' feature which does what was described above: the memory of an external object is freed upon garbage collection. Using this feature requires a user to register an external object for auto-releasing by sending it the ==autoRelease== message. By default, auto-released external objects will just call ==free== on the reference they manage.
 
 [[[language=smalltalk
 myStructure := MyStructure externalNew.
@@ -175,7 +175,7 @@ MyExternalStructure >> finalizeResourceData: handle [
 ]
 ]]]
 
-uFFI provides in addition a second extension point for auto-release: ==resourceData==.
+In addition, uFFI provides a second extension point for auto-release: ==resourceData==.
 The method ==resourceData== allows one to specify what data to store and send as argument on ==finalizeResourceData:==.
 By default this method returns the handle of the external object.
 
@@ -209,14 +209,14 @@ SDL_Window class >> finalizeResourceData: aTuple [
 
 !!! uFFI external objects in the Pharo Heap
 
-We have seen in previous chapters that the different kind of external objects such as structures, arrays or unions, can be instantiated as normal objects using the ==new== message. This makes external objects to be allocated in the Pharo heap.
+We have seen in previous chapters that the different kinds of external objects such as structures, arrays or unions, can be instantiated as normal objects using the ==new== message. This causes external objects to be allocated in the Pharo heap.
 
 [[[language=smalltalk
 myStructure := MyStructure new.
 ]]]
 
 Allocating in the Pharo heap has a main advantage: we do not need to manually track the life-cycle of the object and use functions like C's ==free()== to manually release it.
-Instead, the object and the storage it occupies will be released automatically by the garbage collector as soon as our Pharo program does not use it anymore, just like any other Pharo object.
+Instead, the object and the storage it occupies will be released automatically by the garbage collector as soon as our Pharo program does not need it anymore, just like any other Pharo object.
 
 [[[language=smalltalk
 myStructure := MyStructure new.
@@ -225,12 +225,12 @@ myStructure := MyStructure new.
 myStructure := nil.
 ]]]
 
-However, as objects in the Pharo heap and subject to the control of Pharo's garbage collector, the garbage collector can then wrongly decide to collect objects that, seemingly unused from Pharo, are used from a C library, or decide to move it, leaving a dangling pointer in the C library.
-This situation leads to memory corruptions and funny bugs.
+However, as objects in the Pharo heap and subject to the control of Pharo's garbage collector, the garbage collector might then wrongly decide to collect objects that, seemingly unused from Pharo's perspective, are used in a C library; or decide to move them, leaving C dangling pointers.
+This situation leads to memory corruptions and bizarre bugs.
 
 !!!! The problem of garbage collection and C dangling pointers
 
-As soon as we send an external object as the argument of a C function, the C function has the freedom to manipulate that external object as it pleases. In particular, this can present some troubles when we send the object by reference using a pointer type, as illustrated in the following function binding:
+As soon as we send an external object as an argument of a C function, the C function has the freedom to manipulate that external object as it pleases. In particular, this can present some troubles when we send an object by reference using a pointer type, as illustrated in the following function binding:
 
 [[[language=smalltalk
 FFITutorial >> myFunction: aStructure [
@@ -238,18 +238,18 @@ FFITutorial >> myFunction: aStructure [
 ]
 ]]]
 
-Sending references to Pharo objects to external libraries introduces the problem of dangling references.
+Sending Pharo object references to external libraries introduces the problem of dangling references.
 A Pharo-allocated external object sent by reference sends the ''address'' of that object to the function.
-Such address is an unmanaged object address: it is supposed to reference an object, but since it is now on the C world, the garbage collector cannot update it in case the object is moved, and it cannot know if that address is in use.
-In case the garbage collector decides to move that object or collect it, the C library then finds itself using an address to a wrong object: a dangling pointer.
+Such address is an unmanaged object address: it is supposed to reference an object, but since it is now in the C world, the garbage collector cannot inform C if the object is moved, and it cannot know if that address is in use.
+In case the garbage collector decides to move that object or collect it, the C library then finds itself using a wrong address: a dangling pointer.
 
 +A dangling pointer is created when an external address points to a garbage collected object>../figures/dangling_pointer.pdf|w­idt­h=500+
 
 If we are lucky enough, dangling pointers will crash right away and we will realize the cause of it: they will try to access an object that is not there anymore and produce an error.
 However, it may happen that the dangling pointer references seemingly valid data.
-In that case, the execution of the program will continue for some more time, probably reading and writing wrong values, thus corrupting the memory.
+In that case, the execution of the program will continue for some time, probably reading and writing wrong values, thus corrupting the memory.
 Such are the worst cases to debug, because the cause of the bug is far away from the symptoms we see.
-Moreover, there are no guarantees that concurrently the garbage collector and the C library access and modify the address at the same time.
+Moreover, there are no guarantees about the amount of time between when the garbage collector invalidates the object and the C library tries to access it.
 We will see in a future chapter that multi-threaded FFI weakens such guarantees even more.
 
 To avoid such dangling pointers, no magic is available. Dangling pointers caused by garbage reclamation need to be avoided by users making sure their objects are not collected while in use. Dangling pointers caused by moving objects can be solved by one of Pharo's runtime features that we will study in the next section: pinned objects.
@@ -264,29 +264,28 @@ To pin an object in memory, we can use the message ==pinInMemory==.
 [[[language=smalltalk
 myStructure := MyStructure new.
 myStructure pinInMemory.
-" ... use safely my structure ... "
+" ... safely use my structure ... "
 " nil it and PLUF, eventually the object will be discarded "
 myStructure := nil.
 ]]]
 
-If eventually we decide to unpin the object, we can do so by using ==unpinInMemory==.
+If we later decide to unpin the object, we can do so by using ==unpinInMemory==.
 
 [[[language=smalltalk
 myStructure unpinInMemory.
 ]]]
 
-For more fine grained control, external object also support the messages ==isPinnedInMemory== and ==setPinnedInMemory: aBoolean==. The former returns a boolean specifying wheter the object is pinned or not.
+For more fine grained control, external object also supports the messages ==isPinnedInMemory== and ==setPinnedInMemory: aBoolean==. The former returns a boolean specifying whether the object is pinned or not.
 The latter allows changing the pinned property with a boolean.
 
-@@note Remember that pinning objects in memory do not prevent the garbage collector to reclaim those objects. Any pinned yet unused object will be garbage collected and may create memory corruptions too.
+@@note Remember that pinning objects in memory does not prevent the garbage collector from reclaiming those objects. Any pinned yet unused object will be garbage collected, possibly creating memory corruptions.
 
 !!! Conclusion
 
-In this chapter we have studied the differences between memory allocated in Pharo and in C.
-We have see the problems that may arise by exchanging pointers between them, specially when we allocate external objects: memory leaks and dangling pointers.
+In this chapter we have studied the differences between memory allocated in Pharo and C.
+We have see the problems that may arise by exchanging pointers between them, especially when we allocate external objects: memory leaks and dangling pointers.
 
-Memory leaks are caused when we use external allocation and we do not correctly free this external memory on garbage collection. uFFI proposes an auto-release mechanism that can be extended in two (composable) ways to be able to free external memory when an external object is garbage collected.
+Memory leaks are caused when we use external allocation and we do not correctly free this external memory during garbage collection. uFFI proposes an auto-release mechanism that can be extended in two (composable) ways to be able to free external memory when an external object is garbage collected.
 
-Dangling pointers are caused when we send a pharo-allocated object reference to a C program, since the garbage collector can move or collect the object, and the reference living in the C side does not get updated.
-uFFI supports pinned objects to support with moved objects.
-However, it is the user's responsibility to avoid his objects from being collected if they are in usage.
+Dangling pointers are caused when we send a pharo-allocated object reference to a C program, since the garbage collector can move or collect the object, and the reference living on the C side will not get updated.
+uFFI supports pinning to prevent objects from being moved, but it is the user's responsibility to prevent objects from being collected if they are still in usage by C.
