@@ -8,17 +8,17 @@ This chapter builds on top of the knowledge of previous chapters to introduce th
 This chapter starts by showing how to define type aliases. Type aliases are user-defined alternative names for other types, usually used to improve the readability of the code.
 In addition, you'll see further in this chapter how uFFI exploits them to define more complex types.
 
-uFFI provides support to map C complex data-types,such as arrays, structures, enumerations and unions.
-Arrays are data-types defining a bound sequence of values of a single data-type, e.g., a sequence of 10 integers.
-Structures are data-types defining a collection of values of heterogeneous data-types, e.g., a group of an integer and a two booleans.
+uFFI provides support to map C complex data-types, such as arrays, structures, enumerations and unions.
+Arrays are data-types defining a bounded sequence of values of a single data-type, e.g., a sequence of 10 integers.
+Structures are data-types defining a collection of values of heterogeneous data-types, e.g., a group of an integer and two booleans.
 Enumerations are data-types defining a finite set of named values, e.g., the characters between a and z.
 Unions are data-types defining a single value that can be interpreted with different internal representations, e.g., we may want to see a float as an int to extract its mantissa.
 
 !!! Defining Type Aliases
 
-A type alias is a user-defined alternative name for a type, which are useful in many different scenarios.
-As one example, type aliases are useful to improve code readability, by creating domain specific types, e.g., ==age== => ==unsigned int==.
-As another example, external libraries can come with their own user-defined and types and aliases, so having the same aliases in our FFI bindings can simplify writing those bindings.
+A type alias is a user-defined alternative name for a type, which is useful in many different scenarios.
+One example is improving code readability by creating domain specific types, e.g., ==age== => ==unsigned int==.
+As another example, external libraries can come with their own custom types and aliases, so having the same aliases in our FFI bindings can simplify writing those bindings.
 
 !!!! A first type alias
 
@@ -35,7 +35,7 @@ FFITutorial class >> initialize
   Age := #uint
 ]]]
 
-Once our type alias is defined, and the class side ==initialize== executed, we can use that type alias anywhere in our bindings in that hierarchy below ==FFITutorial==. For example, we can define our ==abs()== binding as follows.
+Once our type alias is defined, and the class side ==initialize== executed, we can use that type alias anywhere in our bindings in the class hierarchy below ==FFITutorial==. For example, we can define our ==abs()== binding as follows.
 
 [[[language=smalltalk
 FFITutorial class >> abs: n [
@@ -52,17 +52,17 @@ Age := #uint
 ]]]
 
 uFFI type alias names, on the left of the assignment, can have any name accepted as a class variable name.
-Although other names are be accepted by Pharo class definitions, the convention tells class variables should be capitalized.
+Although other names are technically accepted in Pharo class definitions, the convention is that class variables should be capitalized.
 The value of a type alias, on the right of the assignment, could be either:
-- a symbol with a type identifier to be resolved by uFFI, e.g., ==#'int'==, a shown above or;
+- a symbol with a type identifier to be resolved by uFFI, e.g., ==#'int'==, as shown above or;
 - an already resolved type object, which we will study in subsequent sections
 
-Before executing a call\-out, uFFI verifies all types used in the call\-out can be resolved to valid types, and will throw an exception if an error occurs while resolving it.
+Before executing a call\-out, uFFI verifies all types used in the call\-out can be resolved to valid types, and will throw an exception if an error occurs while resolving them.
 
 !!!! Sharing type aliases with shared pools
 
 uFFI does not enforce how bindings should be structured by a developer.
-A developer could choose to put all bindings in a single class, or, he could organize them in several classes even amongst several packages. Regardless of how the code is structured, it is most of the times useful to have user-defined type aliases available in all classes using the bindings. For this purpose, uFFI supports structuring type aliases in shared pools.
+A developer could choose to put all bindings in a single class, or organize them in several classes, even amongst several packages. Regardless of how the code is structured, it is usually useful to have user-defined type aliases available in all classes using the bindings. For this purpose, uFFI supports structuring type aliases in shared pools.
 
 A typical usage of shared pools to define uFFI types is to define a ==MyLibraryTypes== shared pool as follows, as we did before to define constants:
 [[[language=smalltalk
@@ -86,8 +86,8 @@ Object subclass: #FFITutorial
 
 !!! Arrays
 
-Arrays are a bound sequence of contiguous values.
-In Pharo, an array object can contain any object, and specially, a single array can contain objects of different types.
+Arrays are a bounded sequence of contiguous values.
+In Pharo, an array object can contain any object, so a single array can contain objects of different types.
 For example, the following code snippet shows how a single array can contain integers, floats, strings and others.
 
 [[[language=smalltalk
@@ -109,10 +109,10 @@ anArray at: 2
  => Out of Bounds Exception!
 ]]]
 
-C arrays behave partially like Pharo arrays: they are contiguous sequences of values.
-However, C arrays are constrained to contain values of a single type, and accessing outside of their bounds is not checked before the access, producing buffer over/underflows.
+C arrays behave somewhat like Pharo arrays: they are contiguous sequences of values.
+However, C arrays are constrained to contain values of a single type, and accessing outside of their bounds is not checked before access, allowing buffer over/underflows.
 
-Because of these differences and differences in their internal representation, uFFI does not automatically marshall Pharo arrays into C arrays. Instead, uFFI provides a specialized array class to manipulate arrays: the ==FFIArray== class.
+Because of these differences, and others in their internal representation, uFFI does not automatically marshall Pharo arrays into C arrays. Instead, uFFI provides a specialized array class to manipulate arrays: the ==FFIArray== class.
 
 !!!! Creating ==FFIArray==s
 
@@ -159,16 +159,16 @@ newArrayOf128Chars := char128Type new.
 newArrayOf128Chars := char128Type externalNew.
 ]]]
 
-==FFIArray==s created this way can be used as any other ==FFIArray==.
+==FFIArray==s created this way can be used like any other ==FFIArray==.
 We will see in the next section how this array definition is useful to combine arrays inside structures.
 
 !!! Structures
 
-A structure is data-type that joins together a group of variables, so-called fields.
+A structure is a data-type that joins together a group of variables, so-called fields.
 Each field of a structure has a name and a type.
 Structures are often used to group related values, so they can be manipulated together.
 For example, let's consider a structure that models a fraction, i.e., a number that has a numerator and a denominator. Both numerator and denominator can be defined as fields of type ==int==.
-Such fraction structure data-type, and a function calculating a double precision floting point number from it, are defined in C as follows:
+Such a fraction structure data-type, and a function calculating its double precision floating point number equivalent, are defined in C as follows:
 
 [[[language=c
 typedef struct
@@ -263,10 +263,10 @@ FFITutorial new fractionToDouble: aFraction.
 
 !!!! Structures by copy or by reference
 
-Structures in C can be passed as argument both by copy and by reference.
-A structure passed by copy means that a copy of the entire structure has to be done and sent to the calling function.
+Structures in C can be passed as an argument both by copy and by reference.
+A structure passed by copy means that a copy of the entire structure has to be made and sent to the calling function.
 A structure passed by reference means that a pointer to the same structure is shared between the caller and callee.
-In C, we can distinguish between these two in two cases: 1) by the appearance of the pointer type modifier ""*"" in type declarations, and 2) by the need to explicitly send a pointer to the function expecting pointers.
+In C, we can distinguish between these two in two cases: 1) by the appearance of the pointer type modifier ""*"" in type declarations, and 2) by the need to explicitly send a pointer to a function expecting pointers.
 
 [[[language=c
 int print_by_pointer(fraction* a_fraction_reference);
@@ -283,7 +283,7 @@ print_by_copy(f);
 print_by_pointer(&f);
 ]]]
 
-In uFFI, such a difference is also reflected in FFI bindings by using or not a pointer type:
+In uFFI, such a difference is also reflected in FFI bindings by using a pointer type (or not):
 
 [[[language=smalltalk
 FFITutorial >> printByPointer: aFraction [
@@ -295,8 +295,8 @@ FFITutorial >> printByCopy: aFraction [
 ]
 ]]]
 
-However, in contrast with C, does not require explicit pointers send to the functions by dereferencing structures.
-Just sending the structure object as argument will take care of the dereferencing if needed.
+However, in contrast with C, when supplying a structure object as an argument, Pharo does not require the developer to worry about dereferencing.
+Just supply the structure object as an argument, and uFFI will take care of dereferencing if needed.
 
 [[[language=smalltalk
 "In C heap"
@@ -305,14 +305,14 @@ aFraction := FractionStructure externalNew.
 aFraction numerator: 40.
 aFraction denominator: 7.
 
-"Both below do work"
+"Both of these work"
 FFITutorial new printByPointer: aFraction.
 FFITutorial new printByCopy: aFraction.
 ]]]
 
 !!!! Structures embedding arrays
 
-Arrays in C can appear embedded in structures defined as follows, where a structure contains an array of four ints.
+Arrays in C can appear embedded in structures, like the one defined below, which contains an array of four ints.
 
 [[[language=c
 struct {
@@ -320,10 +320,10 @@ struct {
 }
 ]]]
 
-Constrastingly with a struct containing ''a pointer'' to an array, the structs created from the definition above will contain the entire array allocated within the struct. Choosing between a struct that embeds an array or one that references an array through a pointer is a responsibility of the author of the C library we are binding, and it is outside the scope of the booklet. However, different structures are defined differently in uFFI. 
+Unlike a struct containing ''a pointer'' to an array, structs created from the definition above will contain the entire array allocated within the struct. Choosing between a struct that embeds an array or one that references an array through a pointer is a responsibility of the author of the C library to which we are binding, and it is outside the scope of this booklet. However, these different structures will have to be defined differently in uFFI. 
 
 Defining the structure above in uFFI requires that we define an array type of size 4 for our ==some_array== field.
-We can define such user defined type as a type alias in our class-side, import our type pool in our structure class and then use our type in our field definitions.
+We can define such a user-defined type as a type alias in our type pool, import our pool into our structure class and then use our type in our field definitions.
 
 [[[language=smalltalk
 FFITutorialTypes class >> initialize [
@@ -347,10 +347,10 @@ EmbeddingArrayStructure rebuildFieldAccessors.
 
 !!!! Structure Alignment
 
-Structures are usually organised in memory as a contiguous region containing all its fields in the order they were defined.
-However, compilers usually align structure fields to simplify the access to them, by adding some ""padding"", i.e., hidden fields that occupy some space to force subsequent fields to move to the desired position.
+Structures are usually organised in memory as a contiguous region containing all fields in the order they were defined.
+However, compilers usually align structure fields to simplify access to them, by adding some ""padding"", i.e., hidden fields that occupy some space to force subsequent fields to move to the desired position.
 
-For example, consider the structure with two fields ==a== and ==b== of types ==char== and ==int== respectively.
+For example, consider a structure with two fields ==a== and ==b== of types ==char== and ==int== respectively.
 Although the ==char a== field only occupies 1 byte, the second field ==b== starts in the fifth byte: it is aligned to 4 bytes. This means the compiled version of such a struct adds 3 bytes of padding between our two fields.
 
 [[[language=c
@@ -368,7 +368,7 @@ struct {
 }
 ]]]
 
-uFFI handles paddings and alignments automatically respecting the C standard behavior.
+uFFI handles padding and alignments automatically, respecting the C standard behavior.
 We can define the structure above using uFFI as:
 
 [[[language=smalltalk
@@ -399,7 +399,7 @@ AlignmentExampleStructure classPool at: #OFFSET_B.
 !!!! Packed Structures
 
 From time to time we will find libraries that use ""packed structures"".
-Packed structures are structures that are compiled without some or all of its padding.
+Packed structures are structures that are compiled without some or all of their padding.
 For example, some compilers will use the pragma ==pack== to tweak the alignment of structures.
 
 [[[language=c
@@ -423,7 +423,7 @@ struct {
 }
 ]]]
 
-uFFI provides support for mapping ""packed structures"" through the ==FFIPackedStructure== class, which is a subclass of ==FFIStructure== that redefines how fields are aligned. ==FFIPackedStructure== does avoid all paddings, creating a single packed structure where each field follows the next one. Consider the example of ==FFIPackedStructure== below, mapping our packed structure above.
+uFFI provides support for mapping ""packed structures"" through the ==FFIPackedStructure== class, which is a subclass of ==FFIStructure== that redefines how fields are aligned. ==FFIPackedStructure== avoids all padding, creating a single packed structure where each field follows the next one. Consider the example of ==FFIPackedStructure== below, mapping our packed structure above.
 
 [[[language=smalltalk
 FFIPackedStructure subclass: #PackedAlignmentExampleStructure
@@ -453,7 +453,7 @@ PackedAlignmentExampleStructure classPool at: #OFFSET_B.
 !!! Enumerations
 
 Enumerations are data-types defining a finite set of named values.
-For example, let's consider we want to create a data-type to identify the different positions of players inside a football match: goalkeeper, defender, midfielder, forward. Such data-type can be defined in C as an enumeration as follows:
+For example, let's say we want to create a data-type to identify the different positions of players in a football match: goalkeeper, defender, midfielder, forward. Such a data-type can be defined in C as an enumeration as follows:
 
 [[[language=c
 typedef enum {
@@ -473,7 +473,7 @@ position myPosition = defender;
 
 !!!! The values of C enumerations
 
-To better understand how to map C enumerations using uFFI, we must before understand how C assigns value to each of the elements in the enumeration.
+To better understand how to map C enumerations using uFFI, we must before understand how C assigns values to each of the elements in the enumeration.
 Internally, C assigns to each of the elements of the enumeration a sequencial numeric value starting from 0 (zero).
 In other words, ==goalkeeper== has a value of 0, ==defender== has a value of 1, and so on.
 C allows developers to specify the values they want too, using an assignment-like syntax.
@@ -488,7 +488,7 @@ typedef enum {
 ]]]
 
 We can explicitly assign values to any of the elements of the enumeration.
-We may leave values without explicit values, in which case they will be automatically assigned a value following its previous value. And finally, many elements in the enumeration may have the same value.
+We may leave values without explicit values, in which case they will be automatically assigned the value following the previous value. And finally, many elements in the enumeration may have the same value.
 The example enumeration below shows these subtleties.
 
 [[[language=c
@@ -508,8 +508,9 @@ enum example {
 
 !!!! Defining an enumeration using ==FFIEnumeration==
 
-Enumerations are declared in uFFI as subclasses of the ==FFIEnumeration== class defining the same elements as defined in C, and with their same values.
-For example, defining our example enumeration is done as follows, defining a subclass of ==FFIEnumeration==, a ==enumDecl== class-side method returning the specification of the enumeration elements, and finally sending the ==initialize== message to the enumeration class we created.
+Enumerations are declared in uFFI as subclasses of the ==FFIEnumeration== class, which similarly define their elements and values.
+Note that in uFFI, a value must be explicitly provided for each element.
+For example, defining our example enumeration is done as follows, defining a subclass of ==FFIEnumeration==, an ==enumDecl== class-side method returning the specification of the enumeration elements, and finally sending the ==initialize== message to the enumeration class we created.
 
 [[[language=smalltalk
 FFIEnumeration subclass: #ExampleEnumeration
@@ -532,7 +533,7 @@ ExampleEnumeration initialize.
 ]]]
 
 Doing this will automatically generate some boilerplate code to manipulate the enumeration.
-You will see that the enumeration class gets redefined as follows creating and initializing a class variable for each of its elements.
+You will see that the enumeration class gets redefined as follows, creating and initializing a class variable for each of its elements.
 
 [[[language=smalltalk
 FFIEnumeration subclass: #ExampleEnumeration
@@ -573,10 +574,10 @@ producing the next output:
 Integer representation of PI: 1078523331
 ]]]
 
-!!!! Defining an union using ==FFIUnion==
+!!!! Defining a union using ==FFIUnion==
 
-Unions are declared in uFFI as subclasses of the ==FFIUnion== class defining the same fields as defined in C, similarly as structures.
-For example, defining our ==float_or_int== union is done as follows, defining a subclass of ==FFIUnion==, a ==fieldsDesc== class-side method returning the specification of the union fields, and finally sending the ==rebuildFieldAccessors== message to the union class we created.
+Similar to the way structures are handled, unions are declared in uFFI as subclasses of the ==FFIUnion== class, defining the same fields as defined in C.
+For example, defining our ==float_or_int== union is done as follows, defining a subclass of ==FFIUnion==, a ==fieldsDesc== class-side method returning the specification of the union's fields, and finally sending the ==rebuildFieldAccessors== message to the union class we created.
 
 [[[language=smalltalk
 FFIUnion subclass: #FloatOrIntUnion
@@ -626,7 +627,7 @@ FloatOrIntUnion >> as_int: anObject [
 
 !!!! Using the defined union type
 
-Once a union type is defined, we can allocate unions from it using the ==new== and ==externalNew== messages, that will allocate it in the Pharo heap or the external C heap respectively.
+Once a union type is defined, we can create a union using the ==new== and ==externalNew== messages, which will allocate it in the Pharo heap or the external C heap respectively.
 
 [[[language=smalltalk
 "In Pharo heap"
@@ -657,9 +658,9 @@ FFITutorial >> firstByte: float_or_union [
 In this chapter we have seen how complex C data-types can be mapped with uFFI.
 In contrast with basic types, which are automatically marshalled between Pharo and C, uFFI does not automatically marshall complex data-types.
 The reasoning behind this decision is that the memory layout of C complex data-types is entirely different than Pharo objects.
-Instead of automatically marshall Pharo objects into these complex data-types, uFFI does reify C them and allows developers to manipulate them through messages in normal Pharo code.
+Instead of automatically marshalling Pharo objects into these complex data-types, uFFI reifies them and allows developers to manipulate them through messages in normal Pharo code.
 
 uFFI provides representations for arrays, structures, enumerations and unions.
 Moreover, these types can be combined, through the usage of type aliases.
 
-In the next chapter we will study how we can define FFI bindings in an object-oriented fashion, using encapsulation, inheritance and delegation.
+In the next chapter, we will study how we can define FFI bindings in an object-oriented fashion, using encapsulation, inheritance and delegation.
