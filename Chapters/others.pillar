@@ -1,9 +1,9 @@
 !!! Handles (Windows)
-Constant HANDLEs, as described in *Windows MSDN>https://msdn.microsoft.com/en-us/library/windows/desktop/ms724457(v=vs.85).aspx*
-are a special kind of external object who are accessed through numbers, therefore and ==ExternalAddress== is not appropriate to 
-describe it (since they are constants and external addresses represents disposable spaces from memory).
+A constant HANDLE, as described in *Windows MSDN>https://msdn.microsoft.com/en-us/library/windows/desktop/ms724457(v=vs.85).aspx*
+is a special kind of external object which is identified numerically. Therefore, an ==ExternalAddress== is not appropriate to 
+describe it (since these handles are constants and an external addresses represents disposable spaces in memory).
 
-Is not clear this is necessary outside Windows, but according to documentation they are somekind analogous to unix's File Descriptors 
+It is not clear that this is necessary outside of Windows, but according to the documentation they are somewhat analogous to unix's File Descriptors 
 (with some remarkable diferences, as documented *here>http://lackingrhoticity.blogspot.fr/2015/05/passing-fds-handles-between-processes.html*.
 
 Example: 
@@ -21,10 +21,10 @@ User32 class >> getActiveWindow [
 
 
 !!!! Casting 
-In Pharo, “casting” as made in C is not necessar since this is just a way to tell the C compiler that a pointer is form a certain 
-type (but is always a pointer, and in machine code is always the same). Nevertheless, there are some usages were we may want to see 
+In Pharo, “casting” as made in C is not necessary since this is just a way to tell the C compiler that a pointer is for a certain 
+type (but it is always a pointer, and in machine code it is always the same). Nevertheless, there are some usages were we may want to see 
 pointers as specific instances in our image. 
-Next examples will cover this cases.
+The next examples will cover these cases.
 
 !!!!! Converting pointers to objects of any type
 So, here you will do something like this: 
@@ -49,9 +49,9 @@ Iterator >> iterator_next: data [
 ]]]
 
 
-This is, you want to iterate a collection of certain type and converting it to proper instances on Pharo side. 
+That is, you want to iterate over a collection of a certain type and convert it to proper instances on the Pharo side. 
 
-While you could always implement ==#castTo:== simply like this: 
+While you could always simply implement ==#castTo:== like this: 
 
 [[[
 ExternalAddress >> castTo: aClass [
@@ -59,7 +59,7 @@ ExternalAddress >> castTo: aClass [
 ]
 ]]]
 
-But you will still have a problem if your type if your type is an “atomic” type, like ==int==, ==long==, etc. because those values are passed 
+But you will still have a problem if your type is an “atomic” type, like ==int==, ==long==, etc. because those values are passed 
 “by value” and not by pointer, so you will need to decode them. In this case, I would implement a method extension and use double dispatch: 
 
 [[[
@@ -90,9 +90,9 @@ Casting in C is trivial. You can do something like this:
 void *var = 0x42000000.
 ]]]
 
-And you will be creating a pointer who points to the address 0x42000000. This kind of declarations are used in certain frameworks, notably some Windows libraries.
+And you will be creating a pointer who points to the address 0x42000000. These kind of declarations are used in certain frameworks, notably some Windows libraries.
 
-In Pharo this "casting" is not so easy, and we need to declare this kind of variables as ExternalAddresses. We do this as this:
+In Pharo, this "casting" is not so easy, and we need to declare these kinds of variables as ExternalAddresses. We do this like this:
 
 [[[
 var := ExternalAddress fromAddress: 16r42000000.
