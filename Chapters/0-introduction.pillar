@@ -50,4 +50,4 @@ We invite those users already comfortable with FFI and/or uFFI to jump around as
 Pharo uFFI has been originally developed by E. Lorenzano, and was based on many ideas on the NativeBoost framework by Igor Stasenko.
 uFFI has received many contributions over the years from Pharo\'s open source community.
 The main backend of uFFI up to this day is the FFI implementation of the OpenSmalltalk VM, with contributors such as Eliot Miranda.
-This booklet was mainly written by Guille Polito and Pablo Tesone, with extensive reviews and edits from Stéphane Ducasse and Ted Brunzie.
+This booklet was mainly written by Guille Polito and Pablo Tesone, with extensive reviews and edits from Stéphane Ducasse, Ted Brunzie and Sean De Nigris.
