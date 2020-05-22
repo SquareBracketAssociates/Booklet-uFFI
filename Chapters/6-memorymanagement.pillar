@@ -32,7 +32,7 @@ static int pre_allocated_variable = 5;
 
 Automatic memory is the memory allocated and released without explicit developer intervention.
 For example, space for the local variables of functions is automatically allocated when functions are called, and released when functions return.
-Automatic memory is generally managed by ""SD strange"" the ==stack==, i.e., extra space is allocated in the stack on a function call, and automatically released on function return because the extra space is popped from the stack when coming back to the caller function.
+Automatic memory is often managed using the ==stack==, i.e., extra space is allocated in the stack on a function call, and automatically released on function return because the extra space is popped from the stack when coming back to the caller function.
 How much extra memory has to be allocated in the stack is generally calculated at compile time.
 
 [[[language=c
