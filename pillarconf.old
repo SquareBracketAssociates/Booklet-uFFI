@@ -1,0 +1,40 @@
+{
+  "base_url": "",
+  "site_name": "TestingInPharo",
+  "title": "Unified FFI - Calling Foreign Functions from Pharo",
+  "attribution": "Guillermo Polito, Stéphane Ducasse, Pablo Tesone and Ted Brunzie",
+  "series": "The Pharo Booklet Collection — edited by S. Ducasse",
+  "keywords": "FFI, foreign function, Pharo, Smalltalk",
+  "language": "en-UK",
+  #'"tocFile": "index.pillar" if you have a index.pillar file containing the table of contents of your book': #comment,
+  "latexWriter" : #'latex:sbabook',
+  "htmlWriter": #html
+}
+
+
+{
+  "metadata" : {
+    "title": "",
+    "attribution": "Guillermo Polito, Stéphane Ducasse, Pablo Tesone and Ted Brunzie",
+    "series": "The Pharo Booklet Collection — edited by S. Ducasse",
+    "keywords": "FFI, Pharo, Smalltalk"
+  },
+  "outputDirectory":"build",
+     "mainDocument":"unified-ffi",
+     "latexTemplate":"support/templates/main.latex.mustache",
+     "latexChapterTemplate":"support/templates/chapter.latex.mustache",
+     "htmlTemplate":"support/templates/html.mustache",
+     "htmlChapterTemplate":"support/templates/html.mustache",
+     "chapters":["Chapters/UnifiedFFI/UnifiedFFI"],
+  "newLine":#unix,
+  "configurations": {
+    "LaTeX" : {
+      "outputType":#'latex:sbabook',
+      "separateOutputFiles":true
+    },
+    "HTML" : {
+      "outputType":#html,
+      "separateOutputFiles":true
+    }
+  }
+}
