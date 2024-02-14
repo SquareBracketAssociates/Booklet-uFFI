@@ -1,4 +1,4 @@
-# Non-Blocking Calls
+## Non-Blocking Calls
 
 This chapter presents how to use the non-blocking feature of uFFI.
 This feature allows to only block the Pharo process doing the FFI call.
@@ -27,7 +27,7 @@ For a more clear description of the _Non-Blocking calls_ we need to define some 
 
 - Main Thread Runner \(*TFMainThreadRunner*\): This FFI Runner is a special case of an FFI Runner. It works exactly as a FFI Runner with the difference that uses the main thread of the OS Process to run the FFI calls. It is useful when we require that FFI calls be performed in the main thread of the application. This is a common require of UI frameworks e.g., Cocoa. This Worker is only available if the Pharo VM is run with the _--worker_ option.
 
-## Using a Worker Thread to execute FFI calls
+### Using a Worker Thread to execute FFI calls
 
 The selection of the FFI Runner to use is FFILibrary dependent. 
 Each library will say which FFI Runner to use. By default all libraries are using the *TFSameThreadRunner*.
@@ -50,7 +50,7 @@ runner
 
 A same worker can be shared by many libraries, but only one call will be performed at a time.
 
-## Mixing Same threads calls and Worker Thread calls
+### Mixing Same threads calls and Worker Thread calls
 
 If we need to mix same thread and worker thread calls, an easy way is to have a subclass of the library that overrides the *runner* method. As an example, we will have the *FFILibrary* subclass called *MyFFILibrary* with all the information to lookup the dynamic libraries and the configuration that we need. *MyFFILibrary* will use the default *#runner* implementation that returns *FFISameThreadRunner*, so it will be used for fast blocking calls. Also, we will have a subclass of *MyFFILibrary*, *MyFFILibraryUsingWorker* that just reimplemnets the *#runner* method returning the default *TFWorker* instance. By doing so, FFI calls using *MyLibrary* will be fast blocking, and the ones using *MyFFILibraryUsingWorker* will be non-blocking.
 
@@ -70,7 +70,7 @@ myFunction
 	^ self ffiCall: #(void myLongFunction()) library: MyFFILibraryUsingWorker 
 ```
 
-## Selecting FFI Calls to execute in a Worker
+### Selecting FFI Calls to execute in a Worker
 
 As said before, using a worker thread to execute a FFI call has a performance penalty. 
 Worker Thread calls are around 20 times slower than calls performed with the Same Thread runner.
@@ -78,14 +78,14 @@ The developer is responsible of selecting the FFI calls that are worthy of being
 An easy metric to determine this could be average time taken by the called C function. 
 If the called C function takes more than some hundreds of milliseconds it will be useful to perform in a worker thread.
 
-## Non Thread Safe Libraries
+### Non Thread Safe Libraries
 
 If the C library called using FFI is not thread safe, we need to guarantee that all the calls to it are performed in the same thread. In this case, it is not possible to mix calls in different runners. 
 The developer is responsible to know if the library can be called from different threads.
 
 A thread safe library not only will allow us to mix fast blocking and non-blocking calls, but also it allows us to have different worker instances implementing concurrent calls.
 
-## Callback considerations
+### Callback considerations
 
 To correclty handling the flow of FFI calls and the C stack, callbacks should be handled in the same thread of the library.
 This is automatic when we are using the Same Thread Runner. However, when using a Worker thread the FFICallback should have the correct FFILibrary assigned to it.
