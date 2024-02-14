@@ -19,19 +19,19 @@ For a more clear description of the _Non-Blocking calls_ we need to define some 
 
 - Non-Blocking Calls: A non-blocking FFI call is executed in an FFI Worker thread. This call just blocks the worker thread and the Pharo process performing the call. The VM Execution Thread continues executing other Pharo Processes. This type of call allows us to execute long-running FFI calls without freezing the whole Pharo image. However, performing a Non-Blocking call is expensive as it is required to synchronize and communicate two OS Threads, the one of the VM Execution and the one of the FFI Worker.
 
-- FFI Runner \(*@TFRunner@*\): A FFI Runner is the object responsible for handling the FFI Calls and Callbacks. It implements different strategies to run them. 
+- FFI Runner \(*TFRunner*\): A FFI Runner is the object responsible for handling the FFI Calls and Callbacks. It implements different strategies to run them. 
 
-- FFI Worker Thread \(*@TFWorker@*\): This FFI Runner uses an OS thread to execute FFI calls. It has an input queue where outgoing FFI calls are put and a response queue that notifies the VM Execution Thread when an FFI call has finished. A FFI Worker Thread performs only one call at a time. If a call is being executed, it is blocked in this call. If it is required to execute more than one call at a time in the worker, a second worker should be created. There is always a default FFI Worker thread that is available, but additional ones can be created and referred them by a name. 
+- FFI Worker Thread \(*TFWorker*\): This FFI Runner uses an OS thread to execute FFI calls. It has an input queue where outgoing FFI calls are put and a response queue that notifies the VM Execution Thread when an FFI call has finished. A FFI Worker Thread performs only one call at a time. If a call is being executed, it is blocked in this call. If it is required to execute more than one call at a time in the worker, a second worker should be created. There is always a default FFI Worker thread that is available, but additional ones can be created and referred them by a name. 
 
-- Same Thread Runner \(*@TFSameThreadRunner@*\): This FFI Runner is the default FFI Runner used by the FFI Calls. It performs blocking calls using the VM Execution Thread. It is fast and performant to use with short FFI calls.
+- Same Thread Runner \(*TFSameThreadRunner*\): This FFI Runner is the default FFI Runner used by the FFI Calls. It performs blocking calls using the VM Execution Thread. It is fast and performant to use with short FFI calls.
 
-- Main Thread Runner \(*@TFMainThreadRunner@*\): This FFI Runner is a special case of an FFI Runner. It works exactly as a FFI Runner with the difference that uses the main thread of the OS Process to run the FFI calls. It is useful when we require that FFI calls be performed in the main thread of the application. This is a common require of UI frameworks e.g., Cocoa. This Worker is only available if the Pharo VM is run with the _--worker_ option.
+- Main Thread Runner \(*TFMainThreadRunner*\): This FFI Runner is a special case of an FFI Runner. It works exactly as a FFI Runner with the difference that uses the main thread of the OS Process to run the FFI calls. It is useful when we require that FFI calls be performed in the main thread of the application. This is a common require of UI frameworks e.g., Cocoa. This Worker is only available if the Pharo VM is run with the _--worker_ option.
 
 ## Using a Worker Thread to execute FFI calls
 
 The selection of the FFI Runner to use is FFILibrary dependent. 
-Each library will say which FFI Runner to use. By default all libraries are using the *@TFSameThreadRunner@*.
-To select to use the default FFI Worker Thread we should override the method *@#runner@*. 
+Each library will say which FFI Runner to use. By default all libraries are using the *TFSameThreadRunner*.
+To select to use the default FFI Worker Thread we should override the method *#runner*. 
 For using the default TFWorker we will do:
 
 ```language=smalltalk
@@ -52,9 +52,9 @@ A same worker can be shared by many libraries, but only one call will be perform
 
 ## Mixing Same threads calls and Worker Thread calls
 
-If we need to mix same thread and worker thread calls, an easy way is to have a subclass of the library that overrides the @#runner@ method. As an example, we will have the @FFILibrary@ subclass called @MyFFILibrary@ with all the information to lookup the dynamic libraries and the configuration that we need. @MyFFILibrary@ will use the default @#runner@ implementation that returns @FFISameThreadRunner@, so it will be used for fast blocking calls. Also, we will have a subclass of @MyFFILibrary@, @MyFFILibraryUsingWorker@ that just reimplemnets the @#runner@ method returning the default @TFWorker@ instance. By doing so, FFI calls using @MyLibrary@ will be fast blocking, and the ones using @MyFFILibraryUsingWorker@ will be non-blocking.
+If we need to mix same thread and worker thread calls, an easy way is to have a subclass of the library that overrides the *runner* method. As an example, we will have the *FFILibrary* subclass called *MyFFILibrary* with all the information to lookup the dynamic libraries and the configuration that we need. *MyFFILibrary* will use the default *#runner* implementation that returns *FFISameThreadRunner*, so it will be used for fast blocking calls. Also, we will have a subclass of *MyFFILibrary*, *MyFFILibraryUsingWorker* that just reimplemnets the *#runner* method returning the default *TFWorker* instance. By doing so, FFI calls using *MyLibrary* will be fast blocking, and the ones using *MyFFILibraryUsingWorker* will be non-blocking.
 
-Next, we need to select which library to use, for doing so we are going to use the @#ffiCall:library:@ selector instead of @#ffiCall:@. For example having a blocking call to @myShortFunction@ will be like
+Next, we need to select which library to use, for doing so we are going to use the *#ffiCall:library:* selector instead of *#ffiCall:*. For example having a blocking call to *myShortFunction* will be like
 
 ```language=smalltalk
 myFunction
@@ -62,7 +62,7 @@ myFunction
 	^ self ffiCall: #(void myShortFunction()) library: MyLibrary 
 ```
 
-And a non-blocking version to a long running function @myLongFunction@ is :
+And a non-blocking version to a long running function *myLongFunction* is :
 
 ```language=smalltalk
 myFunction
@@ -90,6 +90,6 @@ A thread safe library not only will allow us to mix fast blocking and non-blocki
 To correclty handling the flow of FFI calls and the C stack, callbacks should be handled in the same thread of the library.
 This is automatic when we are using the Same Thread Runner. However, when using a Worker thread the FFICallback should have the correct FFILibrary assigned to it.
 
-To give the correct library to a callback we should set it through the @#ffiLibrary:@ message after creating the callback and before passing it to the C library.
+To give the correct library to a callback we should set it through the *#ffiLibrary:* message after creating the callback and before passing it to the C library.
 
-If we are using anonymous callbacks we should create the callback with the message @#newCallbackWithSignature:block:library:@. 
+If we are using anonymous callbacks we should create the callback with the message *#newCallbackWithSignature:block:library:*. 
