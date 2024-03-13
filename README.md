@@ -2,9 +2,9 @@
 
 This is a booklet presenting how to use the FFI engine of Pharo to access functions and librairies written in C. 
 
-[![Build status](https://travis-ci.com/SquareBracketAssociates/booklet-uffi.svg?branch=master)](https://travis-ci.com/github/SquareBracketAssociates/booklet-uFFI) 
+[![Download PDF](https://img.shields.io/badge/Download-PDF-9cf.svg)](https://github.com/SquareBracketAssociates/Booklet-uFFI/releases/download/latest/UnifiedFFI.pdf)
+[![Book generation](https://github.com/SquareBracketAssociates/Booklet-uFFI/actions/workflows/main.yml/badge.svg)](https://github.com/SquareBracketAssociates/Booklet-uFFI/actions/workflows/main.yml)
 
-[Browse] the directory for released versions of the booklet or
-look here for more [Books and Booklets](http://books.pharo.org/).
+Browse the released tag versions of the booklet or look here for more [Books and Booklets](http://books.pharo.org/).
 
 The pdf is available on the release tab of this page. 
