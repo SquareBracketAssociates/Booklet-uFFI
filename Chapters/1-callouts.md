@@ -75,7 +75,7 @@ FFITutorial class >> ticksSinceStart [
 Finally, we can use our freshly-created binding in a Pharo playground by inspecting or printing the following expression:
 
 ```language=smalltalk
-FFITutorial ticksSinceStart
+FFITutorial new ticksSinceStart
 ```
 
 
