@@ -182,7 +182,8 @@ Transcript show: ('{1} + {2} = {3}' format: {
 Before this mechanism existed, uFFI relied on mangling magic for single indirection (pointer depth = 1). Because structures are internally stored in byte arrays, passing the structure itself also worked as a reference.
 
 This behavior is subtle and relies on internal implementation details. Now that an explicit mechanism exists, **we do not recommend relying on that behavior**.
-## Multiple pointer indirection (pointer depth \> 1)
+
+### Multiple pointer indirection (pointer depth \> 1)
 
 In C, it is common --- especially when dealing with lists --- to encounter arguments with more than one level of indirection.
 Of this cases, we will focus on arrays, since other cases follow the same pattern.
