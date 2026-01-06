@@ -96,7 +96,7 @@ This mechanism works with all basic C types defined in uFFI, including:
 
 `FFIBool`, `FFIExternalString`, `FFIOop`, `FFIBoolean32`, `FFIFloat128`, `FFIFloat16`, `FFIFloat32`, `FFIFloat64`, `FFISizeT`,  
 `FFIUInt8`, `FFIUInt16`, `FFIUInt32`, `FFIUInt64`,  
-`FFIInt8`, `FFIInt16`, `FFIInt32`, `FFIInt64`, `FFILong`, `FFIULong`.
+`FFIInt8`, `FFIInt16`, `FFIInt32`, `FFIInt64`, `FFILong`, `FFIULong`.  
 
 ### What happens with structures, unions, and external objects?
 
