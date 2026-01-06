@@ -1,4 +1,4 @@
-# Pointer arithmetic and value holders
+## Pointer arithmetic and value holders
 
 One of the reasons for the power of C is that, despite the appearance of having a type system, it effectively lacks one: every value is ultimately reduced to a memory position.
 
@@ -29,7 +29,7 @@ void main() {
 
 Here, `store_value` receives not the value of `x`, but its address. By dereferencing that address, the function modifies the memory where `x` is stored.
 
-## What does this mean in uFFI?
+### What does this mean in uFFI?
 
 Historically, this has been handled in uFFI by passing a `ByteArray` to the C function. A `ByteArray` is essentially a reification of a chunk of memory, which allows C to operate on it directly.
 
@@ -49,7 +49,7 @@ In short, we pass a `ByteArray` to a C function that expects a pointer to an int
 **This is straightforward, but it is low-level and error-prone.**  
 It requires detailed knowledge of memory layout, sizes, and access primitives.
 
-## ... enter value holders
+### ... enter value holders
 
 To simplify this complexity and make code easier to write and understand, we introduce **value holders**.
 
@@ -97,11 +97,11 @@ This mechanism works with all basic C types defined in uFFI, including:
 `FFIUInt8`, `FFIUInt16`, `FFIUInt32`, `FFIUInt64`,  
 `FFIInt8`, `FFIInt16`, `FFIInt32`, `FFIInt64`, `FFILong`, `FFIULong`.
 
-## What happens with structures, unions, and external objects?
+### What happens with structures, unions, and external objects?
 
 Value holders work naturally for basic C types, but what about more complex ones?
 
-### Structures (and unions)
+#### Structures (and unions)
 
 When you pass a structure *by value* in C, it is always copied. This means the function receives a copy of the structure's contents and can only read them.
 
@@ -146,7 +146,7 @@ void fill_values(mystructtype *t) {
 
 This example is intentionally simplified and not realistic, but it captures the essence: modifying a structure through a pointer.
 
-### Passing structure value holders
+#### Passing structure value holders
 
 Using value holders, this is straightforward:
 
@@ -162,7 +162,7 @@ Transcript show: ('{1} + {2} = {3}' format: {
 
 This ensures uniform access to structures and unions, just like any other type.
 
-### Passing a reference to a structure
+#### Passing a reference to a structure
 
 Sometimes you already have a structure instance and need to pass it by reference. This is common when a structure must be initialized first and then modified by a C function.
 
@@ -185,7 +185,8 @@ This behavior is subtle and relies on internal implementation details. Now that 
 
 In C, it is common --- especially when dealing with lists --- to encounter arguments with more than one level of indirection.
 Of this cases, we will focus on arrays, since other cases follow the same pattern.
-### Passing arrays
+
+#### Passing arrays
 In C, arrays are just pointer arithmetic. A function declared with `int *` or `char **` often expects a list of values.
 
 uFFI provides an abstraction for this through the `FFIArray` class. `FFIArray` can be used both to define array types and to create instances that manage storing and retrieving data through C pointers.
