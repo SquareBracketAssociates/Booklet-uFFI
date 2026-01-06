@@ -24,7 +24,8 @@ void main() {
     int x;
     store_value(&x);
     printf("x = %d\n", x); 
-    /* It will print "x = 42" */ }
+    /* It will print "x = 42" */ 
+}
 ```
 
 Here, `store_value` receives not the value of `x`, but its address. By dereferencing that address, the function modifies the memory where `x` is stored.
